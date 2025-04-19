@@ -1,0 +1,337 @@
+"use client"
+
+import React, { useState, useEffect } from "react"
+import { useSelector } from "react-redux"
+import { useNavigate } from "react-router-dom"
+import {
+  ArrowLeft,
+  ArrowRight,
+  Briefcase,
+  DollarSign,
+  FileText,
+  Paperclip,
+  Users,
+  CheckCircle,
+  AlertTriangle,
+} from "lucide-react"
+import Navbar from "../components/Navbar"
+
+// Form steps component imports
+import BasicDetails from "../components/client/job-form/basic-details"
+import SkillsRequirements from "../components/client/job-form/skills-requirements"
+import BudgetTimeline from "../components/client/job-form/budget-timeline"
+import AttachmentsVisibility from "../components/client/job-form/attachments-visibility"
+import JobPreview from "../components/client/job-form/job-preview"
+
+const PostJob = () => {
+  const navigate = useNavigate()
+  const user = useSelector((state) => state.Auth.user)
+  const [currentStep, setCurrentStep] = useState(1)
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState(null)
+  const [success, setSuccess] = useState(false)
+
+  // Form data state
+  const [jobData, setJobData] = useState({
+    title: "",
+    description: "",
+    subCategory: "Web Development",
+    skills: [],
+    budget: 0,
+    deadline: "",
+    duration: "1-3-months",
+    experienceLevel: "intermediate",
+    location: "remote",
+    attachments: [],
+    isPromoted: false,
+    isPublic: true,
+    invitedFreelancers: [],
+  })
+
+  // Check if user is authorized (client role)
+  useEffect(() => {
+    if (!user) {
+      navigate("/login", { state: { from: "/client/post-job", message: "Please login to post a job" } })
+    } else if (user.role !== "client") {
+      navigate("/", { state: { message: "Only clients can post jobs" } })
+    }
+  }, [user, navigate])
+
+  // Handle form data changes
+  const handleChange = (field, value) => {
+    setJobData((prev) => ({
+      ...prev,
+      [field]: value,
+    }))
+  }
+
+  // Handle form submission
+  const handleSubmit = async () => {
+    setIsLoading(true)
+    setError(null)
+
+    try {
+      // In a real app, you would make an API call to save the job
+      await new Promise((resolve) => setTimeout(resolve, 1500)) // Simulate API call
+
+      // Show success message
+      setSuccess(true)
+
+      // Reset form after success
+      setTimeout(() => {
+        navigate("/client/dashboard", { state: { message: "Job posted successfully!" } })
+      }, 2000)
+    } catch (err) {
+      setError("Failed to post job. Please try again.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  // Steps configuration
+  const steps = [
+    { id: 1, name: "Basic Details", icon: FileText },
+    { id: 2, name: "Skills & Requirements", icon: Users },
+    { id: 3, name: "Budget & Timeline", icon: DollarSign },
+    { id: 4, name: "Attachments & Visibility", icon: Paperclip },
+    { id: 5, name: "Preview & Post", icon: CheckCircle },
+  ]
+
+  // Next step handler
+  const handleNextStep = () => {
+    if (currentStep < steps.length) {
+      setCurrentStep(currentStep + 1)
+      window.scrollTo(0, 0)
+    }
+  }
+
+  // Previous step handler
+  const handlePrevStep = () => {
+    if (currentStep > 1) {
+      setCurrentStep(currentStep - 1)
+      window.scrollTo(0, 0)
+    }
+  }
+
+  // Render current step content
+  const renderStepContent = () => {
+    switch (currentStep) {
+      case 1:
+        return <BasicDetails jobData={jobData} handleChange={handleChange} />
+      case 2:
+        return <SkillsRequirements jobData={jobData} handleChange={handleChange} />
+      case 3:
+        return <BudgetTimeline jobData={jobData} handleChange={handleChange} />
+      case 4:
+        return <AttachmentsVisibility jobData={jobData} handleChange={handleChange} />
+      case 5:
+        return <JobPreview jobData={jobData} />
+      default:
+        return null
+    }
+  }
+
+  // Check if current step is valid
+  const isStepValid = () => {
+    switch (currentStep) {
+      case 1:
+        return jobData.title.trim().length > 0 && jobData.description.trim().length > 0
+      case 2:
+        return jobData.skills.length > 0
+      case 3:
+        return jobData.budget > 0 && jobData.deadline
+      case 4:
+        return true // No required fields in this step
+      case 5:
+        return true // Preview step
+      default:
+        return false
+    }
+  }
+
+  if (success) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0f] text-white flex items-center justify-center">
+        <div className="bg-[#121218] p-8 rounded-lg border border-[#2d2d3a] max-w-md w-full text-center">
+          <div className="mx-auto w-16 h-16 bg-[#9333EA]/20 rounded-full flex items-center justify-center mb-4">
+            <CheckCircle size={32} className="text-[#9333EA]" />
+          </div>
+          <h2 className="text-2xl font-bold mb-2">Job Posted Successfully!</h2>
+          <p className="text-gray-400 mb-6">Your job has been posted and is now visible to freelancers.</p>
+          <div className="animate-pulse">
+            <p className="text-sm text-gray-400">Redirecting to dashboard...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-[#0a0a0f] text-white pb-12">
+        <Navbar />
+      {/* Header */}
+      <div className="bg-gradient-to-r mb-6 h-[200px] from-[#9333EA]/20 to-[#0a0a0f] border-b border-[#2d2d3a] flex items-center">
+  <div className="container mx-auto px-4">
+    <div className="flex flex-col md:flex-row md:items-center md:justify-between w-full">
+      <div>
+        <div className="flex items-center">
+          <Briefcase className="text-[#9333EA] mr-2" size={24} />
+          <h1 className="text-2xl md:text-3xl font-bold">Post a New Job</h1>
+        </div>
+        <p className="text-gray-400 mt-1">Find the perfect freelancer for your project</p>
+      </div>
+      <div className="mt-4 md:mt-0">
+        <button
+          onClick={() => navigate("/client")}
+          className="flex items-center gap-2 bg-[#1e1e2d] hover:bg-[#2d2d3a] text-white px-4 py-2 rounded-md border border-[#2d2d3a] transition-colors"
+        >
+          <ArrowLeft size={18} />
+          <span>Back to Dashboard</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+      <div className="container mx-auto px-4 py-8">
+        {/* Steps Progress */}
+        <div className="mb-8">
+          <div className="hidden md:flex items-center justify-center">
+            {steps.map((step, index) => (
+              <div key={step.id} className="flex items-center">
+                <div
+                  className={`flex items-center justify-center w-10 h-10 rounded-full ${
+                    currentStep >= step.id ? "bg-[#9333EA]" : "bg-[#2d2d3a]"
+                  } transition-colors duration-300`}
+                >
+                  <step.icon size={18} className="text-white" />
+                </div>
+                <div
+                  className={`text-sm font-medium mx-2 ${
+                    currentStep >= step.id ? "text-white" : "text-gray-400"
+                  } transition-colors duration-300`}
+                >
+                  {step.name}
+                </div>
+                {index < steps.length - 1 && (
+                  <div
+                    className={`w-12 h-1 ${
+                      currentStep > step.id ? "bg-[#9333EA]" : "bg-[#2d2d3a]"
+                    } transition-colors duration-300`}
+                  ></div>
+                )}
+              </div>
+            ))}
+          </div>
+
+          {/* Mobile Steps Display */}
+          <div className="md:hidden">
+            <div className="flex justify-between items-center mb-4">
+              <div className="flex items-center">
+                <div className="bg-[#9333EA] w-8 h-8 rounded-full flex items-center justify-center mr-2">
+                  {steps[currentStep - 1].icon &&
+                    React.createElement(steps[currentStep - 1].icon, {
+                      size: 16,
+                      className: "text-white",
+                    })}
+                </div>
+                <span className="font-medium">
+                  Step {currentStep}: {steps[currentStep - 1].name}
+                </span>
+              </div>
+              <span className="text-gray-400 text-sm">
+                {currentStep}/{steps.length}
+              </span>
+            </div>
+            <div className="w-full bg-[#2d2d3a] h-2 rounded-full">
+              <div
+                className="bg-[#9333EA] h-2 rounded-full transition-all duration-300"
+                style={{ width: `${((currentStep - 1) / (steps.length - 1)) * 100}%` }}
+              ></div>
+            </div>
+          </div>
+        </div>
+
+        {/* Error Message */}
+        {error && (
+          <div className="mb-6 p-4 bg-red-900/20 border border-red-800 rounded-md flex items-center">
+            <AlertTriangle size={20} className="text-red-400 mr-2" />
+            <p className="text-red-400">{error}</p>
+          </div>
+        )}
+
+        {/* Form Content */}
+        <div className="bg-[#121218] rounded-lg border border-[#2d2d3a] mb-8">
+          <div className="p-6 border-b border-[#2d2d3a]">
+            <h2 className="text-xl font-bold">{steps[currentStep - 1].name}</h2>
+            <p className="text-gray-400 mt-1">
+              {currentStep === 1 && "Provide basic information about your job"}
+              {currentStep === 2 && "Specify the skills and requirements for your job"}
+              {currentStep === 3 && "Set your budget and timeline expectations"}
+              {currentStep === 4 && "Upload relevant files and set visibility options"}
+              {currentStep === 5 && "Review your job posting before publishing"}
+            </p>
+          </div>
+
+          <div className="p-6">{renderStepContent()}</div>
+        </div>
+
+        {/* Navigation Buttons */}
+        <div className="flex justify-between">
+          <button
+            onClick={handlePrevStep}
+            disabled={currentStep === 1}
+            className={`flex items-center gap-2 px-6 py-3 rounded-md transition-colors ${
+              currentStep === 1
+                ? "bg-[#1e1e2d] text-gray-500 cursor-not-allowed"
+                : "bg-[#1e1e2d] hover:bg-[#2d2d3a] text-white"
+            }`}
+          >
+            <ArrowLeft size={18} />
+            <span>Previous</span>
+          </button>
+
+          {currentStep < steps.length ? (
+            <button
+              onClick={handleNextStep}
+              disabled={!isStepValid()}
+              className={`flex items-center gap-2 px-6 py-3 rounded-md transition-colors ${
+                isStepValid()
+                  ? "bg-[#9333EA] hover:bg-[#a855f7] text-white"
+                  : "bg-[#9333EA]/50 text-white/70 cursor-not-allowed"
+              }`}
+            >
+              <span>Next</span>
+              <ArrowRight size={18} />
+            </button>
+          ) : (
+            <button
+              onClick={handleSubmit}
+              disabled={isLoading}
+              className={`flex items-center gap-2 px-6 py-3 rounded-md transition-colors ${
+                isLoading
+                  ? "bg-[#9333EA]/50 text-white/70 cursor-not-allowed"
+                  : "bg-[#9333EA] hover:bg-[#a855f7] text-white"
+              }`}
+            >
+              {isLoading ? (
+                <>
+                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                  <span>Posting...</span>
+                </>
+              ) : (
+                <>
+                  <span>Post Job</span>
+                  <CheckCircle size={18} />
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+export default PostJob
