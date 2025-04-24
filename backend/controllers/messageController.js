@@ -3,7 +3,6 @@ import Conversation from '../models/Conversation.js';
 import User from '../models/User.js';
 import Notification from '../models/Notification.js';
 import { successResponse, errorResponse } from '../utils/apiResponse.js';
-import { deleteFile } from '../middleware/upload.js';
 
 /**
  * @desc    Get all conversations for a user
@@ -300,11 +299,7 @@ export const deleteMessage = async (req, res) => {
     }
     
     // If message has attachments, delete them
-    if (message.attachments && message.attachments.length > 0) {
-      message.attachments.forEach(attachment => {
-        deleteFile(attachment.path);
-      });
-    }
+   
     
     // Delete message
     await message.remove();

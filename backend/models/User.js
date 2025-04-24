@@ -63,12 +63,8 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: {
-        values: ['freelancer', 'client', 'admin'],
-        message: 'Role must be freelancer, client, or admin',
-      },
-      required: [true, 'Role is required'],
-      default: 'client',
+      enum: ['client', 'freelancer', 'admin'],
+      default: 'client'
     },
     isEmailVerified: {
       type: Boolean,
@@ -89,7 +85,7 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-    avatar: {
+    profilePic: {
       type: String,
       default: '/uploads/default-avatar.png',
     },
@@ -176,8 +172,11 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
-    companyEmailVerificationToken: String,
-    companyEmailVerificationExpire: Date,
+    companyEmailVerificationCode: String,
+    companyEmailVerificationExpires: Date,
+    emailVerificationCode: String,
+   emailVerificationExpire: Date,
+    
     
     // Statistics and metrics
     completedJobs: {
@@ -200,6 +199,28 @@ const userSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+
+    clientVerification: {
+      method: {
+        type: String,
+        enum: ['document', 'companyEmail'],
+      },
+      status: {
+        type: String,
+        enum: ['not-verified', 'pending', 'verified', 'rejected'],
+        default: 'not-verified',
+      },
+      document: {
+        type: String,
+      },
+      requestedAt: Date,
+      reviewedAt: Date,
+      reviewedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    },
+    
     
     // Social links
     socialLinks: {
@@ -220,6 +241,33 @@ const userSchema = new mongoose.Schema(
         trim: true,
       },
     },
+    hires: [{
+      freelancer: {
+        id: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        name: String,
+        skills: [String]
+      },
+      client: {
+        id: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        name: String
+      },
+      job: {
+        id: { type: mongoose.Schema.Types.ObjectId, ref: 'Job' },
+        title: String,
+        totalBudget: Number,
+        paid: { type: Number, default: 0 },
+        milestones: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Milestone' }]
+      },
+      activeMilestones: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Milestone' }],
+      approvedMilestones: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Milestone' }],
+      totalPaid: { type: Number, default: 0 },
+      pendingPayment: { type: Number, default: 0 }
+    }],
+    payments: {
+      inProgress: { type: Number, default: 0 },
+      pending: { type: Number, default: 0 },
+      available: { type: Number, default: 0 }
+    }
   },
   {
     timestamps: true,

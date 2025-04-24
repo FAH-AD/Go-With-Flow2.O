@@ -10,6 +10,7 @@ import {
   updatePassword,
   resendVerification,
   sendCompanyEmailVerification,
+  verifyEmailCode,
 } from '../controllers/authController.js';
 import { protect } from '../middleware/auth.js';
 
@@ -21,7 +22,7 @@ router.post('/login', loginUser);
 router.post('/forgot-password', forgotPassword);
 router.post('/verify-reset-code', verifyResetCode);
 router.post('/reset-password/:token', resetPassword);
-router.get('/verify-email/:token', verifyEmail);
+router.post('/verify-email', verifyEmailCode);
 router.post('/resend-verification', resendVerification);
 
 // Protected routes

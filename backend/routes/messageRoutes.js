@@ -8,7 +8,7 @@ import {
   deleteMessage
 } from '../controllers/messageController.js';
 import { protect, isVerified } from '../middleware/auth.js';
-import { uploadMultiple } from '../middleware/upload.js';
+import { upload } from '../middleware/upload.js';
 
 const router = express.Router();
 
@@ -16,7 +16,7 @@ const router = express.Router();
 router.get('/conversations', protect, isVerified, getConversations);
 router.post('/conversations', protect, isVerified, createConversation);
 router.get('/conversations/:id', protect, isVerified, getMessages);
-router.post('/', protect, isVerified, uploadMultiple('attachments', 5), sendMessage);
+router.post('/', protect, isVerified, upload.array(5), sendMessage);
 router.delete('/conversations/:id', protect, isVerified, deleteConversation);
 router.delete('/:id', protect, isVerified, deleteMessage);
 

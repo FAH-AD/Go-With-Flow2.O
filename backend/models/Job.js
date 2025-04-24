@@ -1,5 +1,18 @@
 import mongoose from 'mongoose';
 
+const milestoneSchema = new mongoose.Schema({
+  title: String,
+  description: String,
+  amount: Number,
+  deadline: Date,
+  status: {
+    type: String,
+    enum: ['pending', 'in-progress', 'submitted', 'approved', 'rejected'],
+    default: 'pending'
+  },
+  approvalDate: Date
+});
+
 const jobSchema = new mongoose.Schema(
   {
     title: {
@@ -101,25 +114,78 @@ const jobSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
-    invitedFreelancers: {
-      type: [
-        {
-          freelancer: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'User',
-          },
-          status: {
-            type: String,
-            enum: {
-              values: ['pending', 'accepted', 'declined'],
-              message: 'Status must be pending, accepted, or declined',
-            },
-            default: 'pending',
-          },
+    invitedFreelancers: [{
+      freelancer: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+      status: {
+        type: String,
+        enum: {
+          values: ['pending', 'accepted', 'declined'],
+          message: 'Status must be pending, accepted, or declined',
         },
-      ],
-      default: [],
-    },
+        default: 'pending',
+      },
+     
+    }],
+    offers: [{
+      freelancer: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      status: { type: String, enum: ['pending', 'accepted', 'rejected'], default: 'pending' },
+      milestoneTitle: String,
+      milestoneDescription: String,
+      milestoneAmount: Number,
+      milestoneDeadline: Date
+    }],
+    teamOffers: [{
+      freelancer: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      role: String,
+      status: { type: String, enum: ['pending', 'accepted', 'rejected'], default: 'pending' },
+      milestoneTitle: String,
+      milestoneDescription: String,
+      milestoneAmount: Number,
+      milestoneDeadline: Date
+    }],
+    isCrowdsourced: { type: Boolean, default: false },
+    crowdsourcingRoles: [{
+      title: String,
+      description: String,
+      skills: [String],
+      budget: Number,
+      status: {
+        type: String,
+        enum: ['open', 'filled'],
+        default: 'open'
+      }
+    }],
+    team: [{
+      freelancer: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+      role: String,
+      bid: { type: mongoose.Schema.Types.ObjectId, ref: 'Bid' },
+      skills: [String],
+      status: { type: String, enum: ['active', 'removed'], default: 'active' },
+      joinedAt: { type: Date, default: Date.now },
+      removedAt: Date,
+      feedback: String,
+      milestones: [{
+        title: String,
+        description: String,
+        amount: Number,
+        deadline: Date,
+        status: { 
+          type: String, 
+          enum: ['pending', 'in-progress', 'submitted', 'approved', 'rejected', 'paid'], 
+          default: 'pending' 
+        },
+        submissionDate: Date,
+        approvalDate: Date,
+        paymentDate: Date,
+        feedback: String,
+        attachments: [String]
+      }]
+    }],
+    groupConversation: { type: mongoose.Schema.Types.ObjectId, ref: 'Conversation' },
+    milestones: [milestoneSchema]
   },
   {
     timestamps: true,

@@ -23,6 +23,10 @@ import AboutUs from './pages/AboutUs';
 import ApplyOnJobPage from './pages/applyJob';
 import PostJob from './pages/postJob';
 import AdminUsers from './pages/Users';
+import RoleSelection from './pages/RoleSelection';
+import FreelancerRegister from './pages/freelancerRegister';
+import ClientRegister from './pages/clientRegister';
+
 
 // Forgot Password Flow
 import ForgotPassword from './pages/ForgotPassword';
@@ -57,7 +61,9 @@ export default function App() {
 
           <Route path="/" element={<PublicLayouts />}>
             <Route path="login" element={<Login />} />
-            <Route path="signup" element={<Register />} />
+            <Route path="signup" element={<RoleSelection />} />
+            <Route path="signup/freelancer" element={<FreelancerRegister />} />
+            <Route path="signup/client" element={<ClientRegister />} />
             <Route path="forgot-password" element={<ForgotPassword />} />
             <Route path="verify-code" element={<VerifyCode />} />
             <Route path="reset-password" element={<ResetPassword />} />

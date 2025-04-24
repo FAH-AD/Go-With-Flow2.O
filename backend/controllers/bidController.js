@@ -3,8 +3,6 @@ import Job from '../models/Job.js';
 import User from '../models/User.js';
 import Notification from '../models/Notification.js';
 import { successResponse, errorResponse } from '../utils/apiResponse.js';
-import { deleteFile } from '../middleware/upload.js';
-
 
 /**
  * @desc    Submit a bid for a job
@@ -12,7 +10,6 @@ import { deleteFile } from '../middleware/upload.js';
  * @access  Private/Freelancer
  */
 export const submitBid = async (req, res) => {
-  // Validate required fields
   const {
     jobId,
     budget,
@@ -21,80 +18,125 @@ export const submitBid = async (req, res) => {
     proposal,
     attachments,
     milestones,
+    role, // This will be the role title, e.g., "Frontend Developer"
   } = req.body;
 
+  try {
+    // Step 1: Find the job
+    const job = await Job.findById(jobId);
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        message: 'Job not found',
+      });
+    }
 
-  // Step 1: Find the job
-  const job = await Job.findById(jobId);
-  if (!job) {
-    return res.status(404).json({
-      success: false,
-      message: 'Job not found',
+    // Step 2: Check if the freelancer has already bid on this job
+    const existingBid = await Bid.findOne({
+      job: jobId,
+      freelancer: req.user._id,
     });
-  }
 
-  // Step 2: Check for existing bid
-  const existingBid = await Bid.findOne({
-    job: jobId,
-    freelancer: req.user._id,
-  });
+    if (existingBid) {
+      // If it's a crowdsourced job, provide more specific information
+      if (job.isCrowdsourced) {
+        return res.status(400).json({
+          success: false,
+          message: `You have already submitted a bid for this job for the role: ${existingBid.role}. You cannot submit multiple bids for the same job, even for different roles.`,
+        });
+      } else {
+        return res.status(400).json({
+          success: false,
+          message: 'You have already submitted a bid for this job. You cannot submit multiple bids for the same job.',
+        });
+      }
+    }
 
-  if (existingBid) {
-    return res.status(400).json({
-      success: false,
-      message: 'You have already submitted a bid for this job',
+    // Step 3: Check if the job is crowdsourced and validate role
+    if (job.isCrowdsourced) {
+      if (!role) {
+        return res.status(400).json({
+          success: false,
+          message: 'Role is required for crowdsourced jobs',
+        });
+      }
+      const validRole = job.crowdsourcingRoles.find(r => r.title === role);
+      if (!validRole) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid role for this crowdsourced job',
+        });
+      }
+      if (validRole.status !== 'open') {
+        return res.status(400).json({
+          success: false,
+          message: 'This role is no longer open for bidding',
+        });
+      }
+    } else if (role) {
+      return res.status(400).json({
+        success: false,
+        message: 'Role should not be specified for non-crowdsourced jobs',
+      });
+    }
+
+    // Step 4: Create and save new bid
+    const newBid = new Bid({
+      job: jobId,
+      freelancer: req.user._id,
+      budget,
+      deliveryTime,
+      deliveryTimeUnit,
+      proposal,
+      attachments,
+      milestones,
+      ...(job.isCrowdsourced && { role }),
+      isRead: false,
     });
-  }
 
-  // Step 3: Create and save new bid
-  const newBid = new Bid({
-    job: jobId,
-    freelancer: req.user._id,
-    budget,
-    deliveryTime,
-    deliveryTimeUnit,
-    proposal,
-    attachments,
-    milestones,
-  });
+    const savedBid = await newBid.save().catch(err => {
+      console.warn('Error saving bid:', err);
+      return null;
+    });
 
-  const savedBid = await newBid.save().catch(err => {
-    console.warn('Error saving bid:', err);
-    return null;
-  });
+    if (!savedBid) {
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to save bid',
+      });
+    }
 
-  if (!savedBid) {
+    // Step 5: Increment bid count without validating the whole job document
+    const updatedJob = await Job.findByIdAndUpdate(
+      jobId,
+      { $inc: { bidCount: 1 } },
+      { new: true }
+    ).catch(err => {
+      console.warn('Error updating bid count:', err);
+      return null;
+    });
+
+    if (!updatedJob) {
+      return res.status(500).json({
+        success: false,
+        message: 'Bid submitted, but failed to update job bid count',
+      });
+    }
+
+    // Success
+    return res.status(200).json({
+      success: true,
+      message: 'Bid submitted successfully',
+      bid: savedBid,
+    });
+  } catch (error) {
+    console.error('Submit bid error:', error);
     return res.status(500).json({
       success: false,
-      message: 'Failed to save bid',
+      message: 'Server error',
     });
   }
-
-  // Step 4: Increment bid count without validating the whole job document
-  const updatedJob = await Job.findByIdAndUpdate(
-    jobId,
-    { $inc: { bidCount: 1 } },
-    { new: true }
-  ).catch(err => {
-    console.warn('Error updating bid count:', err);
-    return null;
-  });
-
-  if (!updatedJob) {
-    return res.status(500).json({
-      success: false,
-      message: 'Bid submitted, but failed to update job bid count',
-    });
-  }
-
-  // Success
-  return res.status(200).json({
-    success: true,
-    message: 'Bid submitted successfully',
-    bid: savedBid,
-  });
 };
-
 
 /**
  * @desc    Get all bids for a job
@@ -104,9 +146,43 @@ export const submitBid = async (req, res) => {
 export const getBidsByJob = async (req, res) => {
   try {
     const jobId = req.params.jobId;
+    const job = await Job.findById(jobId);
+
+    if (!job) {
+      return errorResponse(res, 'Job not found', 404);
+    }
+
+    // Check if the user requesting is the job owner (client)
+    const isClient = job.client.toString() === req.user._id.toString();
+
     const bids = await Bid.find({ job: jobId }).populate('freelancer', 'name email');
     
-    return successResponse(res, 200, 'Bids retrieved successfully', { bids });
+    let organizedBids;
+
+    if (job.isCrowdsourced) {
+      organizedBids = job.crowdsourcingRoles.reduce((acc, role) => {
+        acc[role.title] = bids.filter(bid => bid.role === role.title);
+        return acc;
+      }, {});
+    } else {
+      organizedBids = bids;
+    }
+
+    // If the user is the client, mark all unread bids as read
+    if (isClient) {
+      const unreadBids = bids.filter(bid => !bid.isRead);
+      if (unreadBids.length > 0) {
+        await Bid.updateMany(
+          { _id: { $in: unreadBids.map(bid => bid._id) } },
+          { $set: { isRead: true } }
+        );
+      }
+    }
+
+    return successResponse(res, 200, 'Bids retrieved successfully', { 
+      isCrowdsourced: job.isCrowdsourced,
+      bids: organizedBids 
+    });
   } catch (error) {
     console.error('Get bids by job error:', error);
     return errorResponse(res, 500, 'Server error');
@@ -249,12 +325,7 @@ export const updateBid = async (req, res) => {
     // Handle file attachments
     if (req.files && req.files.length > 0) {
       // Delete old attachments if specified
-      if (req.body.deleteAttachments === 'true' || req.body.deleteAttachments === true) {
-        bid.attachments.forEach(attachment => {
-          deleteFile(attachment.path);
-        });
-        bid.attachments = [];
-      }
+      
       
       // Add new attachments
       const newAttachments = req.files.map(file => ({
@@ -365,5 +436,33 @@ export const addBidFeedback = async (req, res) => {
     return errorResponse(res, error.message, 500);
   }
 };
+
+// New function to mark a single bid as read
+export const markBidAsRead = async (req, res) => {
+  try {
+    const bidId = req.params.bidId;
+    const bid = await Bid.findById(bidId).populate('job');
+
+    if (!bid) {
+      return errorResponse(res, 'Bid not found', 404);
+    }
+
+    // Check if the user requesting is the job owner (client)
+    if (bid.job.client.toString() !== req.user._id.toString()) {
+      return errorResponse(res, 'Not authorized to mark this bid as read', 403);
+    }
+
+    if (!bid.isRead) {
+      bid.isRead = true;
+      await bid.save();
+    }
+
+    return successResponse(res, 200, 'Bid marked as read successfully');
+  } catch (error) {
+    console.error('Mark bid as read error:', error);
+    return errorResponse(res, 500, 'Server error');
+  }
+};
+
 
 

@@ -4,6 +4,8 @@ import { successResponse, errorResponse } from '../utils/apiResponse.js';
 import { sendEmail } from '../utils/sendEmail.js';
 import crypto from 'crypto';
 
+
+
 export const registerUser = async (req, res) => {
   try {
     const {
@@ -11,10 +13,8 @@ export const registerUser = async (req, res) => {
       email,
       password,
       role,
-      // Common fields
       location,
-      avatar,
-      // Freelancer fields
+     profilePic,
       skills,
       bio,
       hourlyRate,
@@ -24,17 +24,17 @@ export const registerUser = async (req, res) => {
       languages,
       experience,
       education,
-      // Client fields
       companyName,
       companyWebsite,
       companyDescription,
       industry,
-      // Social links
       socialLinks,
     } = req.body;
 
     // Check if user already exists
     const userExists = await User.findOne({ email });
+
+    console.log('Received registration data:', req.body);
 
     if (userExists) {
       return errorResponse(
@@ -44,6 +44,22 @@ export const registerUser = async (req, res) => {
         { email: 'An account with this email address already exists' }
       );
     }
+
+    // Validate required fields
+    if (!name || !email || !password || !role) {
+      return errorResponse(
+        res,
+        400,
+        'Please provide all required fields',
+        {
+          name: !name ? 'Name is required' : undefined,
+          email: !email ? 'Email is required' : undefined,
+          password: !password ? 'Password is required' : undefined,
+          role: !role ? 'Role is required' : undefined,
+        }
+      );
+    }
+
     // Create user object with common fields
     const userFields = {
       name,
@@ -51,7 +67,7 @@ export const registerUser = async (req, res) => {
       password,
       role,
       location,
-      avatar,
+      profilePic,
       socialLinks,
     };
 
@@ -69,47 +85,59 @@ export const registerUser = async (req, res) => {
         education,
       });
     } else if (role === 'client') {
+      if (!companyName) {
+        return errorResponse(
+          res,
+          400,
+          'Company name is required for clients',
+          { companyName: 'Company name is required' }
+        );
+      }
       Object.assign(userFields, {
         companyName,
         companyWebsite,
         companyDescription,
         industry,
       });
+    } else {
+      return errorResponse(
+        res,
+        400,
+        'Invalid role',
+        { role: 'Role must be either "freelancer" or "client"' }
+      );
     }
 
     // Create user
     const user = await User.create(userFields);
 
     if (user) {
-      // Generate email verification token
-      const verificationToken = user.generateEmailVerificationToken();
+      // Generate email verification code
+      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit code
+      user.emailVerificationCode = verificationCode;
+      user.emailVerificationExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
 
-      // Save user with verification token
       await user.save();
-
-      // Create verification URL
-      const verificationUrl = `${req.protocol}://${req.get(
-        'host'
-      )}/api/auth/verify-email/${verificationToken}`;
 
       // Create email message
       const message = `
         <h1>Verify Your Email</h1>
-        <p>Please click the link below to verify your email address:</p>
-        <a href="${verificationUrl}" clicktracking=off>${verificationUrl}</a>
+        <p>Your email verification code is:</p>
+        <h2>${verificationCode}</h2>
+        <p>This code is valid for 10 minutes.</p>
       `;
 
       try {
         await sendEmail({
           to: user.email,
-          subject: 'Email Verification',
+          subject: 'Email Verification Code',
           html: message,
         });
 
         return successResponse(
           res,
-          'User registered successfully. Please check your email to verify your account.',
           201,
+          'User registered successfully. Please check your email for the verification code.',
           {
             _id: user._id,
             name: user.name,
@@ -119,32 +147,34 @@ export const registerUser = async (req, res) => {
           }
         );
       } catch (error) {
-        user.emailVerificationToken = undefined;
-        user.emailVerificationExpire = undefined;
-        await user.save();
-
-        return errorResponse(
+        console.error('Email sending error:', error);
+        return successResponse(
           res,
-          'Email could not be sent. Please try again later.',
-          500
+          201,
+          'User registered successfully, but there was an issue sending the verification code. Please use the resend verification option.',
+          {
+            _id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            token: generateToken(user._id),
+          }
         );
       }
     } else {
-      return errorResponse(res, 'Invalid user data', 400);
+      return errorResponse(res, 400, 'Invalid user data');
     }
   } catch (error) {
-   
+    console.error('Registration error:', error);
     return errorResponse(
       res,
       500,
-      'Registration successful but verification email could not be sent',
-      { 
-        email: 'Your account was created, but we couldn\'t send a verification email. Please provide valid email.',
-       
-      }
+      'An error occurred during registration',
+      { server: error.message }
     );
   }
 };
+
 
 /**
  * @desc    Verify email address
@@ -156,15 +186,9 @@ export const verifyEmail = async (req, res) => {
     // Get token from params
     const { token } = req.params;
 
-    // Hash token
-    const emailVerificationToken = crypto
-      .createHash('sha256')
-      .update(token)
-      .digest('hex');
-
     // Find user by token
     const user = await User.findOne({
-      emailVerificationToken,
+      emailVerificationToken: token,
       emailVerificationExpire: { $gt: Date.now() },
     });
 
@@ -201,7 +225,6 @@ export const verifyEmail = async (req, res) => {
     );
   }
 };
-
 /**
  * @desc    User login
  * @route   POST /api/auth/login
@@ -764,6 +787,67 @@ export const verifyResetCode = async (req, res) => {
     );
   } catch (error) {
     console.error('Verify reset code error:', error);
+    return errorResponse(
+      res,
+      500,
+      'Server Error',
+      { server: error.message }
+    );
+  }
+};
+
+export const verifyEmailCode = async (req, res) => {
+  try {
+    const { email, code } = req.body;
+
+    // Validate input
+    if (!email || !code) {
+      return errorResponse(
+        res,
+        400,
+        'Please provide email and verification code',
+        { 
+          email: !email ? 'Email is required' : undefined,
+          code: !code ? 'Verification code is required' : undefined
+        }
+      );
+    }
+
+    // Find user by email
+    const user = await User.findOne({
+      email,
+      emailVerificationCode: code,
+      emailVerificationExpire: { $gt: Date.now() },
+    });
+
+    // Check if user exists and code is valid
+    if (!user) {
+      return errorResponse(
+        res,
+        400,
+        'Invalid or expired verification code',
+        { code: 'Verification code is invalid or has expired' }
+      );
+    }
+
+    // Set user as verified
+    user.isEmailVerified = true;
+    user.emailVerificationCode = undefined;
+    user.emailVerificationExpire = undefined;
+
+    await user.save();
+
+    // Generate JWT token
+    const token = generateToken(user._id);
+
+    return successResponse(
+      res,
+      200,
+      'Email verified successfully. You can now log in.',
+      { token }
+    );
+  } catch (error) {
+    console.error('Verify email code error:', error);
     return errorResponse(
       res,
       500,

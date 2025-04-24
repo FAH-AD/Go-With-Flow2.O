@@ -19,33 +19,34 @@ import messageRoutes from './routes/messageRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import categoryRoutes from './routes/categoryRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import clientVerificationRoutes from './routes/clientVerificationRoutes.js';
+import uploadTestRoutes from './routes/uploadTestRoute.js';
+import freelancerRoutes from './routes/freelancerRoutes.js';
 
 // Initialize app
 const app = express();
-const PORT =  5000;
+const PORT = process.env.PORT || 5000;
 const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: '*', // Adjust for production
-    methods: ['GET', 'POST'],
+    origin: "http://localhost:3000", // or whatever your frontend URL is
+    methods: ["GET", "POST"]
   },
 });
-
-
 
 // socket.io
 global.io = io;
 
 io.on('connection', (socket) => {
-  console.log('User connected:', socket.id);
+  console.log('A user connected');
 
   socket.on('join', (userId) => {
     socket.join(userId); // Join room by user ID for direct messaging
   });
 
   socket.on('disconnect', () => {
-    console.log('User disconnected:', socket.id);
+    console.log('User disconnected');
   });
 });
 
@@ -62,12 +63,15 @@ app.use(morgan('dev'));
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/jobs', jobRoutes);
+app.use('/api/client-verification', clientVerificationRoutes);
 app.use('/api/bids', bidRoutes);
 app.use('/api/reviews', reviewRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/upload', uploadTestRoutes);
+app.use('/api/freelancer', freelancerRoutes);
 
 // API documentation route
 app.get('/api', (req, res) => {
@@ -121,7 +125,7 @@ app.use((req, res) => {
 });
 
 // Start server
-app.listen(PORT, '0.0.0.0', () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running on port ${PORT}`);
 });
 

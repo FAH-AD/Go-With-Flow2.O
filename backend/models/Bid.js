@@ -110,6 +110,10 @@ const bidSchema = new mongoose.Schema(
       ],
       default: [],
     },
+    role: {
+      type: String,
+      trim: true,
+    },
   },
   {
     timestamps: true,

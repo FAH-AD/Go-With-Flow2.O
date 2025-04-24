@@ -111,7 +111,7 @@ export const createEscrowPayment = async (req, res) => {
       recipient: bid.freelancer,
       type: 'payment_received',
       title: 'Payment Created',
-      message: `A payment of $${parsedAmount.toFixed(2)} has been created for your work on "${job.title}"`,
+      message: `A payment of ${parsedAmount.toFixed(2)} has been created for your work on "${job.title}"`,
       data: {
         job: job._id,
         sender: req.user._id,
@@ -175,7 +175,7 @@ export const releasePayment = async (req, res) => {
       recipient: payment.freelancer,
       type: 'payment_received',
       title: 'Payment Released',
-      message: `A payment of $${payment.amount.toFixed(2)} has been released to you`,
+      message: `A payment of ${payment.amount.toFixed(2)} has been released to you`,
       data: {
         job: payment.job,
         sender: req.user._id,
@@ -347,7 +347,7 @@ export const refundPayment = async (req, res) => {
       recipient: payment.client,
       type: 'system_notification',
       title: 'Payment Refunded',
-      message: `Your payment of $${payment.amount.toFixed(2)} has been refunded`,
+      message: `Your payment of ${payment.amount.toFixed(2)} has been refunded`,
       data: {
         payment: payment._id,
         sender: req.user._id,
@@ -358,7 +358,7 @@ export const refundPayment = async (req, res) => {
       recipient: payment.freelancer,
       type: 'system_notification',
       title: 'Payment Refunded',
-      message: `A payment of $${payment.amount.toFixed(2)} has been refunded to the client`,
+      message: `A payment of ${payment.amount.toFixed(2)} has been refunded to the client`,
       data: {
         payment: payment._id,
         sender: req.user._id,
@@ -463,6 +463,64 @@ export const getPaymentStats = async (req, res) => {
     });
   } catch (error) {
     console.error('Get payment stats error:', error);
+    return errorResponse(res, error.message, 500);
+  }
+};
+
+export const createMilestoneEscrowPayment = async (jobId, freelancerId, milestoneId, amount, clientId) => {
+  try {
+    // if (!amount || isNaN(amount)) {
+    //   console.log('Invalid amount:', amount);
+    //   throw new Error('Invalid amount');
+    // }
+
+    const serviceFeePercentage = 0.1; // 10% service fee
+    const serviceFee = amount * serviceFeePercentage;
+    const totalAmount = amount + serviceFee;
+
+    const payment = new Payment({
+      job: jobId,
+      bid: milestoneId,
+      client: clientId,
+      freelancer: freelancerId,
+      amount: amount,
+      serviceFee: serviceFee,
+      totalAmount: totalAmount,
+      paymentMethod: 'credit-card',
+      status: 'pending',
+      description: 'Milestone payment',
+      currency: 'USD',
+      paymentDate: new Date(),
+      milestone: milestoneId
+    });
+
+    await payment.save();
+
+    // Update freelancer's payment status
+    await User.findByIdAndUpdate(freelancerId, {
+      $inc: { 'payments.inProgress': amount }
+    });
+
+    return payment;
+  } catch (error) {
+    console.error('Create milestone escrow payment error:', error);
+    throw error;
+  }
+};
+export const getFreelancerPaymentStatus = async (req, res) => {
+  try {
+    const freelancer = await User.findById(req.user._id);
+    if (!freelancer) {
+      return errorResponse(res, 'Freelancer not found', 404);
+    }
+
+    return successResponse(res, 200, {
+      inProgress: freelancer.payments.inProgress,
+      pending: freelancer.payments.pending,
+      available: freelancer.payments.available
+    });
+  } catch (error) {
+    console.error('Get freelancer payment status error:', error);
     return errorResponse(res, error.message, 500);
   }
 };

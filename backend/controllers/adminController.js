@@ -858,3 +858,42 @@ export const getAllPayments = async (req, res) => {
     return errorResponse(res, error.message, 500);
   }
 };
+
+
+export const getAllClientVerificationRequests = async (req, res) => {
+  const users = await User.find({
+    'clientVerification.method': 'document',
+    'clientVerification.status': 'pending',
+  }).select('name email clientVerification');
+
+  res.status(200).json(users);
+};
+
+
+export const handleClientVerification = async (req, res) => {
+  const { userId } = req.params;
+  const { action } = req.body;
+
+  const user = await User.findById(userId);
+
+  if (!user || !user.clientVerification) {
+    res.status(404);
+    throw new Error('User not found or no verification pending');
+  }
+
+  if (!['approve', 'reject'].includes(action)) {
+    res.status(400);
+    throw new Error('Invalid action');
+  }
+
+  user.clientVerification.status = action === 'approve' ? 'approved' : 'rejected';
+  await user.save();
+
+  await sendEmail({
+    to: user.email,
+    subject: 'Client Verification Update',
+    text: `Your verification request has been ${user.clientVerification.status}.`,
+  });
+
+  res.status(200).json({ message: `Client verification ${user.clientVerification.status}` });
+};

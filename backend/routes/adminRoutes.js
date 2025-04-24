@@ -10,9 +10,13 @@ import {
   updateCategory,
   deleteCategory,
   getAllJobs,
-  getAllPayments
+  getAllPayments,
+  getAllClientVerificationRequests,
+  handleClientVerification,
 } from '../controllers/adminController.js';
 import { protect, authorize } from '../middleware/auth.js';
+import {isAdmin} from '../middleware/admin.js';
+
 
 const router = express.Router();
 
@@ -20,6 +24,9 @@ const router = express.Router();
 router.use(protect);
 router.use(authorize('admin'));
 
+//verify client
+router.get('/verification-requests', protect, isAdmin, getAllClientVerificationRequests);
+router.put('/verify-client/:userId', protect, isAdmin, handleClientVerification);
 // Dashboard and statistics
 router.get('/dashboard', getDashboardStats);
 
