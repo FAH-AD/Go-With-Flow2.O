@@ -22,17 +22,24 @@ import adminRoutes from './routes/adminRoutes.js';
 import clientVerificationRoutes from './routes/clientVerificationRoutes.js';
 import uploadTestRoutes from './routes/uploadTestRoute.js';
 import freelancerRoutes from './routes/freelancerRoutes.js';
+import userProfileRoutes from './routes/userProfileRoutes.js';
 
 // Initialize app
 const app = express();
 const PORT = process.env.PORT || 5000;
 const server = http.createServer(app);
 
+const corsOptions = {
+  origin: 'http://localhost:5173', // or your frontend URL
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true,
+  optionsSuccessStatus: 200
+};
+
+app.use(cors(corsOptions));
 const io = new Server(server, {
-  cors: {
-    origin: "http://localhost:3000", // or whatever your frontend URL is
-    methods: ["GET", "POST"]
-  },
+  cors: corsOptions
 });
 
 // socket.io
@@ -72,6 +79,7 @@ app.use('/api/categories', categoryRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/upload', uploadTestRoutes);
 app.use('/api/freelancer', freelancerRoutes);
+app.use('/api/user-profile', userProfileRoutes);
 
 // API documentation route
 app.get('/api', (req, res) => {

@@ -62,11 +62,11 @@ export default function Login() {
           </p>
         </div>
 
-        <div className="bg-white max-w-6xl w-full m-auto rounded-xl shadow-md flex flex-col md:flex-row">
+        <div className="bg-gray-900  max-w-6xl w-full m-auto rounded-xl shadow-md flex flex-col md:flex-row">
           <div className="flex-1 p-8 md:p-12">
             <form onSubmit={handleSubmit}>
               <div className="mb-4">
-                <label className="block text-gray-700 mb-2">Email ID / Username</label>
+                <label className="block text-white mb-2">Email ID / Username</label>
                 <input
                   type="text"
                   value={email}
@@ -77,7 +77,7 @@ export default function Login() {
               </div>
 
               <div className="mb-4">
-                <label className="block text-gray-700 mb-2">Password</label>
+                <label className="block text-white mb-2">Password</label>
                 <div className="relative w-full">
                   <input
                     type={showPassword ? "text" : "password"}
@@ -101,7 +101,7 @@ export default function Login() {
 
               <div className="flex items-end justify-between mb-6">
                
-                <Link to="/forgot-password" className="text-[#6300B3] hover:underline">
+                <Link to="/forgot-password" className="text-[#9333EA]  hover:underline">
                   Forgot Password?
                 </Link>
               </div>
@@ -114,9 +114,9 @@ export default function Login() {
               </button>
             </form>
 
-            <p className="mt-8 text-center text-gray-600">
+            <p className="mt-8 text-center  text-white">
               Don’t have an account?{' '}
-              <Link to="/register" className="text-[#6300B3] font-semibold hover:underline">
+              <Link to="/signup" className="text-[#9333EA] font-semibold hover:underline">
                 Register
               </Link>
             </p>

@@ -10,6 +10,8 @@ import PortfolioForm from "../components/forms/PortfolioForm"
 import ExperienceForm from "../components/forms/ExperienceForm"
 import EducationForm from "../components/forms/EducationForm"
 import { uploadFile } from '../services/fileUpload';
+import { toast } from 'react-hot-toast';
+
 
 function FreelancerRegister() {
   const navigate = useNavigate()
@@ -574,8 +576,11 @@ function FreelancerRegister() {
       }
   
       // Registration successful
-      alert("Registration successful! Please check your email to verify your account.")
-      navigate("/")
+
+        toast.success("Registration successful! Please check your email to verify your account.");
+      
+      // In the handleSubmit function, after successful registration:
+      navigate("/verify-email", { state: { email: formData.email } });
     } catch (err) {
       setError(err.message || "Something went wrong. Please try again.")
     } finally {
@@ -611,7 +616,8 @@ function FreelancerRegister() {
             />
           </svg>
           <span className="text-xl font-bold text-[#9333EA]">GoWithFlow</span>
-        </div>      <motion.div
+        </div>  
+            <motion.div
         className="w-full max-w-2xl bg-gray-900 rounded-xl p-8 shadow-2xl mb-10"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -702,7 +708,11 @@ function FreelancerRegister() {
                         className="w-full h-full object-cover"
                       />
                     ) : (
-                      <span className="text-4xl">👤</span>
+                      <img
+                                src='https://res.cloudinary.com/dxmeatsae/image/upload/v1745522051/client_verification_docs/vtby102ctjupyjon629f.png'
+                                alt="Profile preview"
+                                className="w-full h-full object-cover"
+                            />
                     )}
                     <input
                       type="file"
@@ -868,7 +878,7 @@ function FreelancerRegister() {
 
                 <div className="space-y-2">
                   <label htmlFor="hourlyRate" className="block font-medium">
-                    Hourly Rate ($) <span className="text-red-400">*</span>
+                    Hourly Rate (PKR) <span className="text-red-400">*</span>
                   </label>
                   <motion.input
                     whileFocus={{ scale: 1.01 }}
@@ -1288,7 +1298,7 @@ function FreelancerRegister() {
                   </motion.button>
                   <motion.button
                     type="submit"
-                    className="flex-2 py-4 bg-purple-700 hover:bg-purple-600 text-white font-semibold rounded-lg transition-all duration-200 flex items-center justify-center"
+                    className="flex-1 py-4 bg-purple-700 hover:bg-purple-600 text-white font-semibold rounded-lg transition-all duration-200 flex items-center justify-center"
                     disabled={loading}
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
@@ -1334,7 +1344,7 @@ function FreelancerRegister() {
           transition={{ delay: 0.5 }}
         >
           Already have an account?{" "}
-          <Link to="/" className="text-purple-500 hover:text-purple-400 font-medium">
+          <Link to="/login" className="text-purple-500 hover:text-purple-400 font-medium">
             Login
           </Link>
         </motion.p>

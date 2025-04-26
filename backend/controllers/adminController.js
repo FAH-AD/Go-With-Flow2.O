@@ -5,7 +5,21 @@ import Payment from '../models/Payment.js';
 import Review from '../models/Review.js';
 import Notification from '../models/Notification.js';
 import Category from '../models/Category.js';
-import { successResponse, errorResponse } from '../utils/apiResponse.js';
+import { sendEmail } from '../utils/sendEmail.js';
+// Helper functions for consistent responses
+const successResponse = (res, data, statusCode = 200) => {
+  return res.status(statusCode).json({
+    success: true,
+    data,
+  });
+};
+
+const errorResponse = (res, message, statusCode = 500) => {
+  return res.status(statusCode).json({
+    success: false,
+    error: message,
+  });
+};
 
 /**
  * @desc    Get admin dashboard statistics
@@ -860,13 +874,65 @@ export const getAllPayments = async (req, res) => {
 };
 
 
+/**
+ * @desc    Get all client verification requests
+ * @route   GET /api/admin/verification-requests
+ * @access  Private/Admin
+ */
 export const getAllClientVerificationRequests = async (req, res) => {
-  const users = await User.find({
-    'clientVerification.method': 'document',
-    'clientVerification.status': 'pending',
-  }).select('name email clientVerification');
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
 
-  res.status(200).json(users);
+    // Build query with filters
+    const query = { 'clientVerification.status': 'pending' };
+
+    // Filter by role if provided
+    if (req.query.role) {
+      query.role = req.query.role;
+    }
+
+    // Search by name or email
+    if (req.query.search) {
+      query.$or = [
+        { name: { $regex: req.query.search, $options: 'i' } },
+        { email: { $regex: req.query.search, $options: 'i' } },
+      ];
+    }
+
+    // Count total matching requests
+    const totalRequests = await User.countDocuments(query);
+
+    // Fetch requests
+    const requests = await User.find(query)
+      .select('name email role clientVerification createdAt')
+      .skip(skip)
+      .limit(limit)
+      .sort(req.query.sort ? JSON.parse(req.query.sort) : { 'clientVerification.submittedAt': -1 });
+
+    // Format the response
+    const formattedRequests = requests.map(user => ({
+      _id: user._id,
+      name: `${user.name}`,
+      email: user.email,
+      role: user.role,
+      verificationMethod: user.clientVerification.method,
+      dateSubmitted: user.clientVerification.submittedAt || user.createdAt,
+      document: user.clientVerification.document,
+    }));
+
+    return successResponse(res, {
+      requests: formattedRequests,
+      page,
+      limit,
+      totalRequests,
+      totalPages: Math.ceil(totalRequests / limit),
+    });
+  } catch (error) {
+    console.error('Get all client verification requests error:', error);
+    return errorResponse(res, error.message, 500);
+  }
 };
 
 
@@ -886,7 +952,7 @@ export const handleClientVerification = async (req, res) => {
     throw new Error('Invalid action');
   }
 
-  user.clientVerification.status = action === 'approve' ? 'approved' : 'rejected';
+  user.clientVerification.status = action === 'approve' ? 'verified' : 'rejected';
   await user.save();
 
   await sendEmail({

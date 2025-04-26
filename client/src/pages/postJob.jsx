@@ -17,11 +17,11 @@ import {
 import Navbar from "../components/Navbar"
 
 // Form steps component imports
-import BasicDetails from "../components/client/job-form/basic-details"
-import SkillsRequirements from "../components/client/job-form/skills-requirements"
-import BudgetTimeline from "../components/client/job-form/budget-timeline"
-import AttachmentsVisibility from "../components/client/job-form/attachments-visibility"
-import JobPreview from "../components/client/job-form/job-preview"
+import BasicDetails from "../components/job-form/basic-details"
+import SkillsRequirements from "../components/job-form/skills-requirements"
+import BudgetTimeline from "../components/job-form/budget-timeline"
+import AttachmentsVisibility from "../components/job-form/attachments-visibility"
+import JobPreview from "../components/job-form/job-preview"
 
 const PostJob = () => {
   const navigate = useNavigate()
@@ -30,6 +30,7 @@ const PostJob = () => {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(false)
+  const token =localStorage.getItem("authToken") // Assuming token is stored in localStorage
 
   // Form data state
   const [jobData, setJobData] = useState({
@@ -46,6 +47,8 @@ const PostJob = () => {
     isPromoted: false,
     isPublic: true,
     invitedFreelancers: [],
+    isCrowdsourced: false,
+    crowdsourcingRoles: [],
   })
 
   // Check if user is authorized (client role)
@@ -65,24 +68,98 @@ const PostJob = () => {
     }))
   }
 
+  // Validate form data before submission
+  const validateJobData = () => {
+    // Basic validation
+    if (!jobData.title.trim()) return "Job title is required"
+    if (!jobData.description.trim()) return "Job description is required"
+    if (jobData.skills.length === 0) return "At least one skill is required"
+    if (!jobData.budget || jobData.budget <= 0) return "Valid budget is required"
+    if (!jobData.deadline) return "Deadline is required"
+
+    // Validate crowdsourcing roles if enabled
+    if (jobData.isCrowdsourced) {
+      if (!jobData.crowdsourcingRoles || jobData.crowdsourcingRoles.length === 0) {
+        return "At least one role is required for crowdsourcing"
+      }
+
+      for (let i = 0; i < jobData.crowdsourcingRoles.length; i++) {
+        const role = jobData.crowdsourcingRoles[i]
+        if (!role.title.trim()) return `Role #${i + 1}: Title is required`
+        if (!role.description.trim()) return `Role #${i + 1}: Description is required`
+        if (role.skills.length === 0) return `Role #${i + 1}: At least one skill is required`
+        if (!role.budget || role.budget <= 0) return `Role #${i + 1}: Valid budget is required`
+      }
+    }
+
+    return null
+  }
+
   // Handle form submission
   const handleSubmit = async () => {
     setIsLoading(true)
     setError(null)
 
+    // Validate form data
+    const validationError = validateJobData()
+    if (validationError) {
+      setError(validationError)
+      setIsLoading(false)
+      return
+    }
+
     try {
-      // In a real app, you would make an API call to save the job
-      await new Promise((resolve) => setTimeout(resolve, 1500)) // Simulate API call
+      // Prepare form data for API
+      const formDataToSend = new FormData()
+
+      // Add basic job data
+      Object.keys(jobData).forEach((key) => {
+        if (key !== "attachments" && key !== "crowdsourcingRoles") {
+          formDataToSend.append(key, typeof jobData[key] === "object" ? JSON.stringify(jobData[key]) : jobData[key])
+        }
+      })
+
+      // Add crowdsourcing roles as JSON
+      if (jobData.isCrowdsourced && jobData.crowdsourcingRoles.length > 0) {
+        jobData.crowdsourcingRoles.forEach((role, index) => {
+          Object.keys(role).forEach(key => {
+            formDataToSend.append(`crowdsourcingRoles[${index}][${key}]`, role[key]);
+          });
+        });
+      }
+
+      // Add attachments
+      if (jobData.attachments && jobData.attachments.length > 0) {
+        jobData.attachments.forEach((file, index) => {
+          formDataToSend.append(`attachment_${index}`, file)
+        })
+      }
+
+      // Send data to API
+      const response = await fetch("http://localhost:5000/api/jobs", {
+        method: "POST",
+        body: formDataToSend,
+        headers: {
+          // Don't set Content-Type when using FormData, browser will set it automatically with boundary
+          Authorization: `Bearer ${token}`, // Assuming token is stored in localStorage
+        },
+      })
+
+      const data = await response.json()
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to post job")
+      }
 
       // Show success message
       setSuccess(true)
 
       // Reset form after success
       setTimeout(() => {
-        navigate("/client/dashboard", { state: { message: "Job posted successfully!" } })
+        navigate("/client", { state: { message: "Job posted successfully!" } })
       }, 2000)
     } catch (err) {
-      setError("Failed to post job. Please try again.")
+      setError(err.message || "Failed to post job. Please try again.")
     } finally {
       setIsLoading(false)
     }
@@ -139,6 +216,17 @@ const PostJob = () => {
       case 2:
         return jobData.skills.length > 0
       case 3:
+        // Additional validation for crowdsourcing
+        if (jobData.isCrowdsourced) {
+          return (
+            jobData.budget > 0 &&
+            jobData.deadline &&
+            jobData.crowdsourcingRoles.length > 0 &&
+            jobData.crowdsourcingRoles.every(
+              (role) => role.title.trim() && role.description.trim() && role.skills.length > 0 && role.budget > 0,
+            )
+          )
+        }
         return jobData.budget > 0 && jobData.deadline
       case 4:
         return true // No required fields in this step
@@ -168,31 +256,30 @@ const PostJob = () => {
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white pb-12">
-        <Navbar />
+      <Navbar />
       {/* Header */}
       <div className="bg-gradient-to-r mb-6 h-[200px] from-[#9333EA]/20 to-[#0a0a0f] border-b border-[#2d2d3a] flex items-center">
-  <div className="container mx-auto px-4">
-    <div className="flex flex-col md:flex-row md:items-center md:justify-between w-full">
-      <div>
-        <div className="flex items-center">
-          <Briefcase className="text-[#9333EA] mr-2" size={24} />
-          <h1 className="text-2xl md:text-3xl font-bold">Post a New Job</h1>
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between w-full">
+            <div>
+              <div className="flex items-center">
+                <Briefcase className="text-[#9333EA] mr-2" size={24} />
+                <h1 className="text-2xl md:text-3xl font-bold">Post a New Job</h1>
+              </div>
+              <p className="text-gray-400 mt-1">Find the perfect freelancer for your project</p>
+            </div>
+            <div className="mt-4 md:mt-0">
+              <button
+                onClick={() => navigate("/client")}
+                className="flex items-center gap-2 bg-[#1e1e2d] hover:bg-[#2d2d3a] text-white px-4 py-2 rounded-md border border-[#2d2d3a] transition-colors"
+              >
+                <ArrowLeft size={18} />
+                <span>Back to Dashboard</span>
+              </button>
+            </div>
+          </div>
         </div>
-        <p className="text-gray-400 mt-1">Find the perfect freelancer for your project</p>
       </div>
-      <div className="mt-4 md:mt-0">
-        <button
-          onClick={() => navigate("/client")}
-          className="flex items-center gap-2 bg-[#1e1e2d] hover:bg-[#2d2d3a] text-white px-4 py-2 rounded-md border border-[#2d2d3a] transition-colors"
-        >
-          <ArrowLeft size={18} />
-          <span>Back to Dashboard</span>
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-
 
       <div className="container mx-auto px-4 py-8">
         {/* Steps Progress */}

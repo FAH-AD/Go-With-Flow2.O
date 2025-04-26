@@ -1,19 +1,57 @@
 import React, { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
-import { Menu, X, ChevronDown, Bell, MessageSquare, Settings, LogOut, User, Users, Briefcase, Shield } from 'lucide-react';
-import { logout } from "../redux/AuthSlice"; // Import the logout action
+import { Menu, X, ChevronDown, Bell, MessageSquare, Settings, LogOut, User, Users, Briefcase, Shield, CheckCircle, AlertCircle, Clock } from 'lucide-react';
+import { logout, fetchUserProfile } from "../redux/AuthSlice";
 
 const Navbar = () => {
   const dispatch = useDispatch();
   const user = useSelector((state) => state.Auth.user);
   const isAuthenticated = !!user;
+  const token = localStorage.getItem('authToken'); // Get token from localStorage
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [userProfile, setUserProfile] = useState(null);
 
   const navigate = useNavigate();
+
+  // Fetch user profile from API
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (isAuthenticated && user?.role === 'client' && token) {
+        console.log("Attempting to fetch profile with token:", token);
+        try {
+          const response = await fetch('http://localhost:5000/api/user-profile/profile', {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+          });
+
+          if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+          }
+
+          const data = await response.json();
+          console.log("Profile fetch response:", data.data.user);
+          setUserProfile(data.data.user);
+          localStorage.setItem('userStatus', data.data.user.clientVerification.status); // Store profile in localStorage
+        } catch (error) {
+          console.error('Error fetching user profile:', error.message);
+          // If the token is invalid, you might want to log the user out
+          if (error.message.includes('401')) {
+            console.log("Token seems to be invalid. Logging out.");
+            handleLogout();
+          }
+        }
+      }
+    };
+
+    fetchProfile();
+  }, [isAuthenticated, user, token]);
 
   // Handle scroll effect for navbar
   useEffect(() => {
@@ -38,6 +76,12 @@ const Navbar = () => {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  useEffect(() => {
+    if (isAuthenticated) {
+      dispatch(fetchUserProfile());
+    }
+  }, [dispatch, isAuthenticated]);
+
   const toggleMenu = () => setIsMenuOpen(!isMenuOpen);
   const toggleProfile = () => setIsProfileOpen(!isProfileOpen);
   const closeMenu = () => setIsMenuOpen(false);
@@ -48,8 +92,6 @@ const Navbar = () => {
     navigate('/');
     setIsProfileOpen(false);
   };
-
-
 
   // Navigation links based on user role
   const getNavLinks = () => {
@@ -67,7 +109,7 @@ const Navbar = () => {
         return [
           { name: "Dashboard", href: "/admin" },
           { name: "Users", href: "/admin/users" },
-          { name: "Projects", href: "/admin/projects" },
+          { name: "Verify Users", href: "/admin/verify-users" },
           { name: "Reports", href: "/admin/reports" },
           { name: "Settings", href: "/admin/settings" },
         ];
@@ -75,15 +117,14 @@ const Navbar = () => {
         return [
           { name: "Dashboard", href: "/client" },
           { name: "Find Talent", href: "/talent" },
-          { name: "My Projects", href: "/client/projects" },
-          { name: "Messages", href: "/messages" },
+          { name: "My Jobs", href: "/client/my-jobs" },
+          { name: "Messages", href: "client/messages" },
         ];
       case "freelancer":
         return [
           { name: "Dashboard", href: "/freelancer" },
-          { name: "Find Work", href: "/jobs" },
-         
-          { name: "Messages", href: "/messages" },
+          { name: "Find Work", href: "/freelancer/jobs" },
+          { name: "Messages", href: "/freelancer/messages" },
         ];
       default:
         return [];
@@ -91,6 +132,44 @@ const Navbar = () => {
   };
 
   const navLinks = getNavLinks();
+
+  const getVerificationStatus = () => {
+    if (!isAuthenticated || user?.role !== 'client' || !userProfile) {
+      return null;
+    }
+
+    const clientVerification = userProfile.clientVerification || {};
+   
+
+    switch (clientVerification.status) {
+      case 'not-verified':
+        return {
+          text: 'Verify Your Company',
+          icon: <Shield size={16} className="mr-2 text-yellow-500" />,
+          action: () => navigate('/verify-company')
+        };
+      case 'pending':
+        return {
+          text: 'Verification Pending',
+          icon: <Clock size={16} className="mr-2 text-blue-500" />
+        };
+      case 'verified':
+        return {
+          text: 'Company Verified',
+          icon: <CheckCircle size={16} className="mr-2 text-green-500" />
+        };
+      case 'rejected':
+        return {
+          text: 'Verification Rejected',
+          icon: <AlertCircle size={16} className="mr-2 text-red-500" />,
+          action: () => navigate('/verify-company')
+        };
+      default:
+        return null;
+    }
+  };
+
+  const verificationStatus = getVerificationStatus();
 
   return (
     <header
@@ -147,7 +226,6 @@ const Navbar = () => {
               </button>
 
               {/* Messages Icon - Only for logged in users */}
-              
 
               {/* User Profile Dropdown */}
               <div className="relative">
@@ -155,7 +233,7 @@ const Navbar = () => {
                   <div className="h-8 w-8 rounded-full overflow-hidden border-2 border-[#9333EA]">
                     <img
                       src={
-                        // user?.profilePicture ||
+                         user?.profilePic ||
                          "https://res.cloudinary.com/dxmeatsae/image/upload/v1744198536/uploads/tep04pn8luh3bt2n24g6.png"}
                       alt="Profile"
                       className="h-full w-full object-cover"
@@ -168,11 +246,11 @@ const Navbar = () => {
                 {isProfileOpen && (
                   <div className="profile-menu absolute right-0 mt-2 w-56 rounded-md bg-[#121218] border border-[#2d2d3a] shadow-lg py-1 z-50">
                     <div className="px-4 py-3 border-b border-[#2d2d3a]">
-                      <p className="text-sm text-white">{user?.name}</p>
-                      <p className="text-xs text-gray-400 truncate">{user?.email}</p>
+                      <p className="text-sm text-white">{userProfile?.name || user?.name}</p>
+                      <p className="text-xs text-gray-400 truncate">{userProfile?.email || user?.email}</p>
                       <div className="mt-2">
                         <span className="inline-flex items-center rounded-full bg-[#9333EA]/20 px-2 py-1 text-xs font-medium text-[#9333EA] capitalize">
-                          {user?.role}
+                          {userProfile?.role || user?.role}
                         </span>
                       </div>
                     </div>
@@ -185,10 +263,18 @@ const Navbar = () => {
                       Profile
                     </Link>
 
-                   
+                    {verificationStatus && (
+                      <button
+                        onClick={verificationStatus.action}
+                        className="w-full flex items-center px-4 py-2 text-sm text-white hover:bg-[#2d2d3a] transition-colors"
+                      >
+                        {verificationStatus.icon}
+                        {verificationStatus.text}
+                      </button>
+                    )}
 
                     {/* Role switcher for demo purposes */}
-                   
+
                     <div className="border-t border-[#2d2d3a] mt-1">
                       <button
                         onClick={handleLogout}

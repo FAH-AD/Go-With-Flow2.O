@@ -1,0 +1,308 @@
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+import { useParams } from 'react-router-dom';
+import Navbar from '../components/Navbar';
+import { DollarSign, Clock, Paperclip, MessageSquare, UserCheck, Briefcase, Star, CheckCircle, X, ExternalLink, ChevronDown } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+
+const JobBids = () => {
+  const [bids, setBids] = useState(null);
+  const [job, setJob] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [selectedBid, setSelectedBid] = useState(null);
+  const [selectedRole, setSelectedRole] = useState('');
+  const { jobId } = useParams();
+  const token = localStorage.getItem('authToken');
+
+  useEffect(() => {
+    const fetchBids = async () => {
+      try {
+        const response = await axios.get(`http://localhost:5000/api/bids/job/${jobId}`, {
+          headers: {
+            Authorization: `Bearer ${token}`
+          }
+        });
+        console.log(response.data.data);
+        setBids(response.data.data.bids);
+        setJob(response.data.data);
+        if (response.data.data.isCrowdsourced) {
+          setSelectedRole(Object.keys(response.data.data.bids)[0]);
+        }
+        setLoading(false);
+      } catch (err) {
+        setError('Failed to fetch bids');
+        setLoading(false);
+      }
+    };
+
+    fetchBids();
+  }, [jobId, token]);
+
+  const handleHire = (bidId) => {
+    // Implement hire functionality
+    console.log(`Hiring for bid ${bidId}`);
+  };
+
+  const handleMessage = (freelancerId) => {
+    // Implement message functionality
+    console.log(`Messaging freelancer ${freelancerId}`);
+  };
+
+  const handleViewDetails = (bid) => {
+    setSelectedBid(bid);
+  };
+
+  const closePopup = () => {
+    setSelectedBid(null);
+  };
+
+  if (loading) return <div className="min-h-screen bg-[#0a0a0f] text-white flex items-center justify-center">
+    <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-[#9333EA]"></div>
+  </div>;
+  if (error) return <div className="text-red-500 text-center">{error}</div>;
+
+  const renderBids = (bidsToRender) => {
+    if (!bidsToRender || bidsToRender.length === 0) {
+      return (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.5 }}
+          className="text-center text-gray-400 py-4"
+        >
+          No bids for this role yet.
+        </motion.div>
+      );
+    }
+
+    return bidsToRender.map((bid, index) => (
+      <motion.div
+        key={bid._id}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: index * 0.1 }}
+        className="bg-[#1c1c24] rounded-lg shadow-md p-6 transition duration-300 ease-in-out transform hover:scale-105"
+      >
+        <div className="flex items-center mb-4">
+          <img src={bid.freelancer.profilePicture} alt={bid.freelancer.name} className="w-12 h-12 rounded-full mr-4" />
+          <div>
+            <h3 className="text-xl font-semibold text-white">{bid.freelancer.name}</h3>
+            <div className='flex items-center gap-4 mt-1'>
+              <div className="flex items-center  mt-1">
+                <Star className="text-yellow-400 mr-1" size={16} />
+                <span className="text-sm text-gray-300 text-nowrap">{bid.freelancer.successRate}% Success Rate</span>
+              </div>
+              <div className="flex items-center mt-1">
+                <CheckCircle className="text-green-400 mr-1" size={16} />
+                <span className="text-sm text-gray-300 text-nowrap">{bid.freelancer.completedJobs} Jobs Completed</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="mb-4">
+          <p className="text-gray-300">{bid.proposal.length > 150 ? `${bid.proposal.substring(0, 150)}...` : bid.proposal}</p>
+        </div>
+        <div className="flex items-center mb-2">
+          <DollarSign className="text-[#9333EA] mr-2" size={18} />
+          <span className="font-semibold text-white">${bid.budget}</span>
+        </div>
+        <div className="flex items-center mb-2">
+          <Clock className="text-[#9333EA] mr-2" size={18} />
+          <span className="text-gray-300">{bid.deliveryTime} {bid.deliveryTimeUnit}</span>
+        </div>
+        <div className="flex items-center mb-4">
+          <Paperclip className="text-[#9333EA] mr-2" size={18} />
+          <span className="text-gray-300">{bid.attachments.length} attachment(s)</span>
+        </div>
+        <div className="flex justify-between">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => handleViewDetails(bid)}
+            className="bg-[#2D3748] text-white px-4 py-2 rounded-md flex items-center transition duration-300 ease-in-out hover:bg-[#4A5568]"
+          >
+            View Details
+          </motion.button>
+        </div>
+        <div className="flex justify-between mt-6">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => handleHire(bid._id)}
+              className="bg-[#9333EA] text-white px-6 py-2 rounded-md flex items-center transition duration-300 ease-in-out hover:bg-[#7928CA]"
+            >
+              <UserCheck className="mr-2" size={18} />
+              Hire
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => handleMessage(bid.freelancer._id)}
+              className="bg-[#2D3748] text-white px-6 py-2 rounded-md flex items-center transition duration-300 ease-in-out hover:bg-[#4A5568]"
+            >
+              <MessageSquare className="mr-2" size={18} />
+              Message
+            </motion.button>
+          </div>
+      </motion.div>
+    ));
+  };
+
+  const BidDetailsPopup = ({ bid }) => (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+    >
+      <motion.div
+        initial={{ scale: 0.9 }}
+        animate={{ scale: 1 }}
+        exit={{ scale: 0.9 }}
+        className="bg-[#1c1c24] rounded-lg p-8 max-w-2xl w-full max-h-[90vh] overflow-y-auto"
+      >
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-white">Bid Details</h2>
+          <button onClick={closePopup} className="text-gray-400 hover:text-white">
+            <X size={24} />
+          </button>
+        </div>
+        <div className="space-y-4">
+          <div className="flex items-center">
+            <img src={bid.freelancer.profilePicture} alt={bid.freelancer.name} className="w-16 h-16 rounded-full mr-4" />
+            <div>
+              <h3 className="text-xl font-semibold text-white">{bid.freelancer.name}</h3>
+              <div className="flex items-center gap-4 mt-1">
+                <div className="flex items-center">
+                  <Star className="text-yellow-400 mr-1" size={16} />
+                  <span className="text-sm text-gray-300">{bid.freelancer.successRate}% Success Rate</span>
+                </div>
+                <div className="flex items-center">
+                  <CheckCircle className="text-green-400 mr-1" size={16} />
+                  <span className="text-sm text-gray-300">{bid.freelancer.completedJobs} Jobs Completed</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div>
+            <h4 className="text-lg font-semibold text-white mb-2">Proposal</h4>
+            <p className="text-gray-300">{bid.proposal}</p>
+          </div>
+          <div className="flex items-center">
+            <DollarSign className="text-[#9333EA] mr-2" size={18} />
+            <span className="font-semibold text-white">${bid.budget}</span>
+          </div>
+          <div className="flex items-center">
+            <Clock className="text-[#9333EA] mr-2" size={18} />
+            <span className="text-gray-300">{bid.deliveryTime} {bid.deliveryTimeUnit}</span>
+          </div>
+          <div>
+            <h4 className="text-lg font-semibold text-white mb-2">Attachments</h4>
+            <ul className="list-disc list-inside text-gray-300">
+              {bid.attachments.map((attachment, index) => (
+                <li key={index} className="flex items-center">
+                  <a href={attachment.url} target="_blank" rel="noopener noreferrer" className="text-[#9333EA] hover:underline flex items-center">
+                    {attachment.name} <ExternalLink size={14} className="ml-1" />
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className="flex justify-between mt-6">
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => handleHire(bid._id)}
+              className="bg-[#9333EA] text-white px-6 py-2 rounded-md flex items-center transition duration-300 ease-in-out hover:bg-[#7928CA]"
+            >
+              <UserCheck className="mr-2" size={18} />
+              Hire
+            </motion.button>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => handleMessage(bid.freelancer._id)}
+              className="bg-[#2D3748] text-white px-6 py-2 rounded-md flex items-center transition duration-300 ease-in-out hover:bg-[#4A5568]"
+            >
+              <MessageSquare className="mr-2" size={18} />
+              Message
+            </motion.button>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+
+  return (
+    <div className="min-h-screen bg-[#0a0a0f] text-white">
+      <Navbar />
+
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="bg-gradient-to-r mb-6 h-[200px] from-[#9333EA]/20 to-[#0a0a0f] border-b border-[#2d2d3a] flex items-center"
+      >
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between w-full">
+            <div>
+            <div className="flex items-center">
+  <Briefcase className="text-[#9333EA] mr-2" size={24} />
+  <h1 className="text-2xl md:text-3xl font-bold">Bids for {job?.jobTitle}</h1>
+</div>
+<p className="text-gray-400 mt-1">Manage and track bids for your posted job</p>
+</div>
+          </div>
+        </div>
+      </motion.div>
+      
+      <div className="container mx-auto px-4 py-8">
+        <motion.h2
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.2 }}
+          className="text-3xl font-bold mb-6 text-white"
+        >
+          {job?.jobTitle}
+        </motion.h2>
+        {job?.isCrowdsourced ? (
+          <div>
+            <div className="mb-6">
+              <label htmlFor="role-select" className="block text-sm font-medium text-gray-400 mb-2">
+                Select Role
+              </label>
+              <div className="relative">
+                <select
+                  id="role-select"
+                  value={selectedRole}
+                  onChange={(e) => setSelectedRole(e.target.value)}
+                  className="block appearance-none w-full bg-[#1c1c24] border border-[#2d2d3a] text-white py-3 px-4 pr-8 rounded leading-tight focus:outline-none focus:bg-[#2d2d3a] focus:border-[#9333EA]"
+                >
+                  {Object.keys(bids || {}).map((role) => (
+                    <option key={role} value={role}>{role}</option>
+                  ))}
+                </select>
+                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
+                  <ChevronDown size={20} />
+                </div>
+              </div>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {renderBids(bids?.[selectedRole])}
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {renderBids(bids)}
+          </div>
+        )}
+      </div>
+      <AnimatePresence>
+        {selectedBid && <BidDetailsPopup bid={selectedBid} />}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+export default JobBids;

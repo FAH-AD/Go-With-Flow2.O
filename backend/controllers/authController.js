@@ -176,55 +176,106 @@ export const registerUser = async (req, res) => {
 };
 
 
-/**
- * @desc    Verify email address
- * @route   GET /api/auth/verify-email/:token
- * @access  Public
- */
-export const verifyEmail = async (req, res) => {
+
+export const resendVerification = async (req, res) => {
   try {
-    // Get token from params
-    const { token } = req.params;
+    const { email } = req.body;
 
-    // Find user by token
-    const user = await User.findOne({
-      emailVerificationToken: token,
-      emailVerificationExpire: { $gt: Date.now() },
-    });
+    const user = await User.findOne({ email });
 
-    // Check if user exists
     if (!user) {
-      return errorResponse(
-        res,
-        400,
-        'Invalid or expired token',
-        { token: 'Verification token is invalid or has expired' }
-      );
+      return res.status(404).json({ message: 'User not found' });
     }
 
-    // Set user as verified
-    user.isEmailVerified = true;
-    user.emailVerificationToken = undefined;
-    user.emailVerificationExpire = undefined;
+    if (user.isVerified) {
+      return res.status(400).json({ message: 'User is already verified' });
+    }
 
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit code
+      user.emailVerificationCode = verificationCode;
+      user.emailVerificationExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
     await user.save();
+
+    const message = `
+    <h1>Verify Your Email</h1>
+    <p>Your email verification code is:</p>
+    <h2>${verificationCode}</h2>
+    <p>This code is valid for 10 minutes.</p>
+  `;
+
+  try {
+    await sendEmail({
+      to: user.email,
+      subject: 'Email Verification Code',
+      html: message,
+    });
 
     return successResponse(
       res,
-      200,
-      'Email verified successfully. You can now log in.',
-      {}
+      201,
+      'User registered successfully. Please check your email for the verification code.',
+      {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        token: generateToken(user._id),
+      }
     );
   } catch (error) {
-    console.error('Verify email error:', error);
+    console.error('Email sending error:', error);
+    return successResponse(
+      res,
+      201,
+      'User registered successfully, but there was an issue sending the verification code. Please use the resend verification option.',
+      {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        token: generateToken(user._id),
+      }
+    );
+  }} catch (error) {
+    console.error('Resend verification error:', error);
     return errorResponse(
       res,
       500,
-      'Server Error',
+      'An error occurred during resend verification',
       { server: error.message }
     );
   }
 };
+export const verifyEmail = async (req, res) => {
+  try {
+    const { email, verificationCode } = req.body;
+
+    const user = await User.findOne({ email });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (user.isVerified) {
+      return res.status(400).json({ message: 'User is already verified' });
+    }
+
+    if (user.verificationCode !== verificationCode) {
+      return res.status(400).json({ message: 'Invalid verification code' });
+    }
+
+    user.isVerified = true;
+    user.verificationCode = undefined;
+    await user.save();
+
+    res.status(200).json({ message: 'Email verified successfully' });
+  } catch (error) {
+    console.error('Error verifying email:', error);
+    res.status(500).json({ message: 'Error verifying email' });
+  }
+};
+
+
 /**
  * @desc    User login
  * @route   POST /api/auth/login
@@ -554,97 +605,7 @@ export const updatePassword = async (req, res) => {
   }
 };
 
-/**
- * @desc    Send new verification email
- * @route   POST /api/auth/resend-verification
- * @access  Public
- */
-export const resendVerification = async (req, res) => {
-  try {
-    const { email } = req.body;
 
-    // Validate email
-    if (!email) {
-      return errorResponse(
-        res,
-        400,
-        'Please provide email',
-        { email: 'Email is required' }
-      );
-    }
-
-    // Find user by email
-    const user = await User.findOne({ email });
-
-    if (!user) {
-      return errorResponse(
-        res,
-        404,
-        'No user found with this email',
-        { email: 'No account is associated with this email' }
-      );
-    }
-
-    // Check if already verified
-    if (user.isEmailVerified) {
-      return errorResponse(
-        res,
-        400,
-        'Email already verified',
-        { email: 'Email is already verified' }
-      );
-    }
-
-    // Generate verification token
-    const verificationToken = user.generateEmailVerificationToken();
-
-    await user.save();
-
-    // Send verification email
-    const verificationUrl = `${req.protocol}://${req.get('host')}/api/auth/verify-email/${verificationToken}`;
-    
-    const message = `
-      <h1>Verify Your Email</h1>
-      <p>Please verify your email by clicking the link below:</p>
-      <a href="${verificationUrl}" target="_blank">Verify Email</a>
-      <p>If you did not request this, please ignore this email.</p>
-    `;
-
-    try {
-      await sendEmail({
-        to: user.email,
-        subject: 'Email Verification',
-        html: message,
-      });
-
-      return successResponse(
-        res,
-        200,
-        'Verification email sent',
-        {}
-      );
-    } catch (error) {
-      user.emailVerificationToken = undefined;
-      user.emailVerificationExpire = undefined;
-      await user.save();
-
-      return errorResponse(
-        res,
-        500,
-        'Email could not be sent',
-        { email: 'Verification email could not be sent' }
-      );
-    }
-  } catch (error) {
-    console.error('Resend verification error:', error);
-    return errorResponse(
-      res,
-      500,
-      'Server Error',
-      { server: error.message }
-    );
-  }
-};
 
 /**
  * @desc    Send company email verification

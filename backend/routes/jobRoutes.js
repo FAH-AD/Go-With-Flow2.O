@@ -17,7 +17,8 @@ import {
   addMilestone,
   approveMilestone,
   getAllClientJobs,
-  getJobMilestones // Added import for new route
+  getJobMilestones,
+  getAllJobs
 } 
 from '../controllers/jobController.js';
 import { protect, authorize, isVerified } from '../middleware/auth.js';
@@ -28,6 +29,7 @@ const router = express.Router();
 
 // Public routes
 router.get('/', protect, getJobs);
+router.get('/all-jobs', protect, getAllJobs);
 router.get('/:id', getJobById);
 
 // Protected routes

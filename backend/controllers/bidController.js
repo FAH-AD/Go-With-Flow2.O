@@ -155,17 +155,41 @@ export const getBidsByJob = async (req, res) => {
     // Check if the user requesting is the job owner (client)
     const isClient = job.client.toString() === req.user._id.toString();
 
-    const bids = await Bid.find({ job: jobId }).populate('freelancer', 'name email');
+    const bids = await Bid.find({ job: jobId }).populate({
+      path: 'freelancer',
+      select: '_id name email profilePic successRate completedJobs',
+      model: User
+    });
     
     let organizedBids;
 
     if (job.isCrowdsourced) {
       organizedBids = job.crowdsourcingRoles.reduce((acc, role) => {
-        acc[role.title] = bids.filter(bid => bid.role === role.title);
+        acc[role.title] = bids.filter(bid => bid.role === role.title).map(bid => ({
+          ...bid.toObject(),
+          freelancer: {
+            _id: bid.freelancer._id,
+            name: bid.freelancer.name,
+            email: bid.freelancer.email,
+            profilePicture: bid.freelancer.profilePic,
+            successRate: bid.freelancer.successRate,
+            completedJobs: bid.freelancer.completedJobs
+          }
+        }));
         return acc;
       }, {});
     } else {
-      organizedBids = bids;
+      organizedBids = bids.map(bid => ({
+        ...bid.toObject(),
+        freelancer: {
+          _id: bid.freelancer._id,
+          name: bid.freelancer.name,
+          email: bid.freelancer.email,
+          profilePicture: bid.freelancer.profilePic,
+          successRate: bid.freelancer.successRate,
+          completedJobs: bid.freelancer.completedJobs
+        }
+      }));
     }
 
     // If the user is the client, mark all unread bids as read
@@ -180,6 +204,7 @@ export const getBidsByJob = async (req, res) => {
     }
 
     return successResponse(res, 200, 'Bids retrieved successfully', { 
+      jobTitle: job.title,  // Include the job title in the response
       isCrowdsourced: job.isCrowdsourced,
       bids: organizedBids 
     });

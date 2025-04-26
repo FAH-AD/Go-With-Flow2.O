@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useSelector } from "react-redux"
+import { useSelector,useDispatch } from "react-redux"
 import {
   Briefcase,
   DollarSign,
@@ -14,6 +14,7 @@ import {
   Plus,
   Star,
   MessageSquare,
+  AlertTriangle,
 } from "lucide-react"
 
 import Navbar from "../components/Navbar"
@@ -25,11 +26,72 @@ import BudgetChart from "../components/client/budget-chart"
 import ProjectTimeline from "../components/client/project-timeline"
 import { useNavigate } from "react-router-dom"
 const ClientDashboard = () => {
-  const user = useSelector((state) => state.Auth.user)
   const [isLoading, setIsLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
+  const [userStatus, setUserStatus] = useState("")
  const navigate = useNavigate()
+ useEffect(() => {
+ setUserStatus(localStorage.getItem("userStatus"))
+ },[setUserStatus])
+
+
+ const user = useSelector((state) => state.Auth.user)
+  const dispatch = useDispatch()
+
+  
+  const renderVerificationBanner = () => {
+    
+    switch (userStatus) {
+      case "not-verified":
+        return (
+          <div className="bg-gradient-to-r mb-4 from-[#9333EA]/20 to-[#0a0a0f] border-b border-[#2d2d3a] text-yellow-500 p-2">
+            <div className="container mx-auto flex items-center justify-between">
+              <div className="flex items-center">
+                <AlertTriangle className="mr-2" />
+                <span>Your company is not verified. Some features may be limited.</span>
+              </div>
+              <button 
+                onClick={() => navigate("/verify-company")} 
+                className="bg-[#9333EA] text-white px-4 py-2 rounded hover:bg-gray-800"
+              >
+                Verify Now
+              </button>
+            </div>
+          </div>
+        )
+      case "pending":
+        return (
+          <div className="bg-gradient-to-r mb-4 from-[#9333EA]/20 to-[#0a0a0f] border-b border-[#2d2d3a] text-blue-500 p-2">
+            <div className="container mx-auto flex items-center">
+              <Clock className="mr-2" />
+              <span>Your verification status is pending. It will take 2-3 working days.</span>
+            </div>
+          </div>
+        )
+      case "rejected":
+        return (
+          <div className="bg-gradient-to-r mb-4 from-[#9333EA]/20 to-[#0a0a0f] border-b border-[#2d2d3a] text-red-500 p-2">
+            <div className="container mx-auto flex items-center justify-between">
+              <div className="flex items-center">
+                <AlertOctagon className="mr-2" />
+                <span>Your verification was rejected. Please try another way to verify your company.</span>
+              </div>
+              <button 
+                onClick={() => navigate("/verify-company")} 
+                className="bg-[#9333EA] text-white px-4 py-2 rounded hover:bg-gray-800"
+              >
+                Try Again
+              </button>
+            </div>
+          </div>
+        )
+      case "verified":
+        return null
+      default:
+        return null
+    }
+  }
   // Mock data - in a real app, this would come from an API
   const [stats, setStats] = useState({
     projects: { total: 0, active: 0, completed: 0 },
@@ -173,6 +235,8 @@ const ClientDashboard = () => {
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white pb-12">
       <Navbar />
+
+      {renderVerificationBanner()}
       {/* Client Header */}
       <div className="bg-gradient-to-r mb-4 from-[#9333EA]/20 to-[#0a0a0f] border-b border-[#2d2d3a]">
         <div className="container mb-4 mx-auto px-4 py-8">

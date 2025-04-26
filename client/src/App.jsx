@@ -26,6 +26,11 @@ import AdminUsers from './pages/Users';
 import RoleSelection from './pages/RoleSelection';
 import FreelancerRegister from './pages/freelancerRegister';
 import ClientRegister from './pages/clientRegister';
+import VerifyEmail from './pages/VerifyEmail';
+import VerifyCompany from './pages/VerifyCompany';
+import VerifyUsers from './pages/VerifyUser';
+import ClientJobs from './pages/ClientJobs';
+import JobBids from './pages/JobBids';
 
 
 // Forgot Password Flow
@@ -69,6 +74,7 @@ export default function App() {
             <Route path="reset-password" element={<ResetPassword />} />
             <Route path="about-us" element={<AboutUs />} />
             <Route path="how-it-works" element={<HowItWorks />} />
+            <Route path="verify-email" element={<VerifyEmail />} />
            
           </Route>
 
@@ -76,42 +82,36 @@ export default function App() {
           <Route path="/admin" element={<AdminLaouts />}>
             <Route index element={<Admin />} />
             <Route path="users" element={<AdminUsers />} />
+            <Route path="verify-users" element={<VerifyUsers />} />
           </Route>
-
+          <Route path="/client" element={<UserLayout />}>
+            <Route index element={<Client />} />
+            <Route path="post-job" element={<PostJob />} />
+            <Route path="my-jobs" element={<ClientJobs />} />
+            <Route path="jobs/:jobId" element={isClient ? <JobBids /> : <Navigate to="/" />} />
+            <Route path="verify-company" element={<VerifyCompany />} />
+            <Route path="messages" element={<Messaging />} />
+          </Route>
           
 
+
+          <Route path="/freelancer" element={<UserLayout />}>
+            <Route index element={<Freelancer />} />
+            <Route path="search-job" element={<JobSearchPage />} />
+            <Route path="apply-job" element={<ApplyOnJobPage />} />
+            <Route path="messages" element={<Messaging />} />
+          </Route>
+
           {/* Protected Freelancer Route */}
-          <Route
-            path="/freelancer"
-            element={isFreelancer ? <Freelancer /> : <Navigate to="/login" />}
-          />
-           <Route
-            path="/messages"
-            element={isFreelancer ? <Messaging /> : <Navigate to="/login" />}
-          />
-           <Route path="/search-job" element={ isFreelancer? <JobSearchPage /> : <Navigate to="/login"/>} />
-           <Route path="/freelancer/apply-job" element={<ApplyOnJobPage />} />
+          
+          
 
           {/* Protected Client Route */}
-          <Route
-            path="/client"
-            element={isClient ? <Client /> : <Navigate to="/login" />}
-          />
+         
 
-<Route
-            path="/post-job"
-            element={isClient ? <PostJob /> : <Navigate to="/login" />}
-          />
 
           {/* Chat Route - Available to Freelancer or Client */}
-          <Route
-            path="/chat"
-            element={user && (isFreelancer || isClient) ? <Chat /> : <Navigate to="/login" />}
-          />
-           <Route
-            path="/messages"
-            element={isClient ? <Messaging /> : <Navigate to="/login" />}
-          />
+         
 
           {/* Optional: Catch-all route for 404 */}
           {/* <Route path="*" element={<NotFound />} /> */}

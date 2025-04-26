@@ -1,20 +1,46 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { get, verifyUser } from '../services/ApiEndpoint';
+import axios from 'axios';
 
-export const updateUser = createAsyncThunk('updateuser', async () => {
-  try {    
-    const response = await verifyUser();
-    return response;
-  } catch (error) {
-    throw error;
+// Create an async thunk for checking authentication status
+export const checkAuthStatus = createAsyncThunk(
+  'auth/checkAuthStatus',
+  async (_, { rejectWithValue }) => {
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        return { isAuthenticated: false };
+      }
+      
+      // You can create a simple endpoint on your backend to verify the token
+      const response = await axios.get('http://localhost:5000/api/auth/verify', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      return { isAuthenticated: true };
+    } catch (error) {
+      return rejectWithValue({ isAuthenticated: false });
+    }
   }
-});
+);
+
+// Keep the existing fetchUserProfile thunk
+export const fetchUserProfile = createAsyncThunk(
+  'auth/fetchUserProfile',
+  async (_, { rejectWithValue, getState }) => {
+    try {
+      const token = getState().auth.token;
+      const response = await axios.get('http://localhost:5000/api/user-profile/profile', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      return response.data;
+    } catch (error) {
+      return rejectWithValue(error.response.data);
+    }
+  }
+);
 
 export const logout = createAsyncThunk('auth/logout', async (_, { dispatch }) => {
   try {
-    // Here you can add any API call to logout if needed
-    // For example: await logoutAPI();
-    
     // Clear any stored tokens or user data from localStorage
     localStorage.removeItem('token');
     localStorage.removeItem('user');
@@ -27,13 +53,16 @@ export const logout = createAsyncThunk('auth/logout', async (_, { dispatch }) =>
 });
 
 const initialState = {
-  loading: null,
+  user: null,
+  isAuthenticated: false,
+  loading: false,
   error: null,
-  user: null
+  token: localStorage.getItem('token'),
+  isLoading: false,
 };
 
 const AuthSlice = createSlice({
-  name: "Auth",
+  name: "auth",
   initialState: initialState,
   reducers: {
     SetUser: (state, action) => {
@@ -43,22 +72,51 @@ const AuthSlice = createSlice({
       state.user = null;
       state.loading = null;
       state.error = null;
-    }
+      state.token = null;
+      state.isLoading = false;
+      state.isAuthenticated = false;
+    },
+    login: (state, action) => {
+      state.token = action.payload.token;
+      state.user = action.payload.user;
+      // If there's verification status in the payload, update it
+      if (action.payload.user && action.payload.user.clientVerification) {
+        state.user.clientVerification = action.payload.user.clientVerification;
+      }
+    },
   },
 
   extraReducers: (builder) => {
     builder
-      .addCase(updateUser.pending, (state) => {
+      .addCase(checkAuthStatus.pending, (state) => {
         state.loading = true;
       })
-      .addCase(updateUser.fulfilled, (state, action) => {
-        state.loading = null;
-        state.user = action.payload;
+      .addCase(checkAuthStatus.fulfilled, (state, action) => {
+        state.loading = false;
+        state.isAuthenticated = true;
       })
-      .addCase(updateUser.rejected, (state, action) => {
-        state.loading = null;
-        state.error = action.error.message;
-        state.user = null;
+      .addCase(checkAuthStatus.rejected, (state) => {
+        state.loading = false;
+        state.isAuthenticated = false;
+      })
+      .addCase(fetchUserProfile.pending, (state) => {
+        state.isLoading = true;
+        state.loading = true;
+      })
+      .addCase(fetchUserProfile.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.loading = false;
+        state.isAuthenticated = true;
+        state.user = action.payload.user;
+        // Update the user status based on the clientVerification field
+        if (state.user.role === 'client' && state.user.clientVerification) {
+          state.user.verificationStatus = state.user.clientVerification.status;
+        }
+      })
+      .addCase(fetchUserProfile.rejected, (state, action) => {
+        state.isLoading = false;
+        state.loading = false;
+        state.error = action.payload;
       })
       .addCase(logout.pending, (state) => {
         state.loading = true;
@@ -67,14 +125,17 @@ const AuthSlice = createSlice({
         state.user = null;
         state.loading = null;
         state.error = null;
+        state.token = null;
+        state.isLoading = false;
+        state.isAuthenticated = false;
       })
       .addCase(logout.rejected, (state, action) => {
         state.loading = null;
-        state.error = action.error.message;
+        state.error = action.payload;
       });
   }
 });
 
-export const { SetUser, Logout } = AuthSlice.actions;
+export const { SetUser, Logout, login } = AuthSlice.actions;
 
 export default AuthSlice.reducer;

@@ -97,55 +97,96 @@ export const getJobs = async (req, res, next) => {
 
     const freelancerSkills = (freelancer.skills || []).map(skill => skill.toLowerCase());
 
-      // Fetch all open jobs
-      const allJobs = await Job.find({ status: 'open' })
-        .populate('client', 'name email profileImage')
-        .sort({ createdAt: -1 });
-  
-      const matchingJobs = allJobs.filter(job => {
-        const jobObj = job.toObject();
-        let jobSkills = [];
-  
-        if (job.isCrowdsourced) {
-          // For crowdsourced jobs, collect skills from all roles
-          jobSkills = [...new Set(jobObj.crowdsourcingRoles.flatMap(role => role.skills.map(s => s.toLowerCase())))];
-        } else {
-          // For simple jobs, use the job skills
-          jobSkills = (jobObj.skills || []).map(s => s.toLowerCase());
+    const allJobs = await Job.find({ status: 'open' })
+      .populate('client', 'name email profileImage')
+      .sort({ createdAt: -1 });
+
+    const matchingJobs = [];
+
+    for (const job of allJobs) {
+      const jobObj = job.toObject();
+      let jobSkills = [];
+
+      if (job.isCrowdsourced) {
+        // Crowdsourced jobs
+        jobSkills = [...new Set(
+          jobObj.crowdsourcingRoles.flatMap(role => {
+            const roleSkillsString = (role.skills && role.skills.length > 0) ? role.skills[0] : '[]';
+            let parsedSkills = [];
+            try {
+              parsedSkills = JSON.parse(roleSkillsString);
+            } catch (err) {
+              console.error('Error parsing role skills:', err);
+            }
+            return (Array.isArray(parsedSkills) ? parsedSkills : []);
+          })
+        )];
+      } else {
+        // Normal jobs
+        if (Array.isArray(jobObj.skills) && jobObj.skills.length > 0) {
+          const skillEntry = jobObj.skills[0]; // String stored
+          try {
+            const parsedSkills = JSON.parse(skillEntry);
+            jobSkills = Array.isArray(parsedSkills) ? parsedSkills : [];
+          } catch (err) {
+            console.error('Error parsing job skills:', err);
+            jobSkills = [];
+          }
         }
-  
-        // Check if there's at least one matching skill
-        return jobSkills.some(skill => freelancerSkills.includes(skill));
-      }).map(job => {
-        const jobObj = job.toObject();
-        let jobSkills = [];
-  
-        if (job.isCrowdsourced) {
-          jobSkills = [...new Set(jobObj.crowdsourcingRoles.flatMap(role => role.skills.map(s => s.toLowerCase())))];
-        } else {
-          jobSkills = (jobObj.skills || []).map(s => s.toLowerCase());
-        }
-  
-        const matchingSkills = jobSkills.filter(skill => freelancerSkills.includes(skill));
+      }
+
+      jobSkills = jobSkills.map(skill => skill.toLowerCase());
+
+      const matchingSkills = jobSkills.filter(skill => freelancerSkills.includes(skill));
+
+      if (matchingSkills.length > 0) {
         const matchPercentage = jobSkills.length > 0
           ? Math.round((matchingSkills.length / jobSkills.length) * 100)
           : 0;
-  
-        return {
+
+        matchingJobs.push({
           ...jobObj,
-          skillMatchPercentage: matchPercentage
-        };
-      });
-  
-      // Sort by match percentage (highest to lowest)
-      matchingJobs.sort((a, b) => b.skillMatchPercentage - a.skillMatchPercentage);
-  
-      sendResponse(res, httpStatus.OK, 'Jobs retrieved successfully.', matchingJobs);
-    } catch (error) {
-      console.error('Error in getJobs:', error);
-      next(new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Unable to fetch jobs.'));
+          skillMatchPercentage: matchPercentage,
+          matchingSkills, // optional
+        });
+      }
     }
-  };
+
+    matchingJobs.sort((a, b) => b.skillMatchPercentage - a.skillMatchPercentage);
+
+    sendResponse(res, httpStatus.OK, 'Jobs retrieved successfully.', matchingJobs);
+
+  } catch (error) {
+    console.error('Error in getJobs:', error);
+    next(new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Unable to fetch jobs.'));
+  }
+};
+
+
+export const getAllJobs = async (req, res, next) => {
+  try {
+    if (!req.user || !req.user.id) {
+      return next(new ApiError(httpStatus.UNAUTHORIZED, 'User not authenticated.'));
+    }
+
+    const freelancer = await User.findById(req.user.id);
+    if (!freelancer) {
+      return next(new ApiError(httpStatus.NOT_FOUND, 'Freelancer not found.'));
+    }
+
+    // Fetch all open jobs without skill matching
+    const allJobs = await Job.find({ status: 'open' })
+      .populate('client', 'name email profileImage')
+      .sort({ createdAt: -1 });
+
+    sendResponse(res, httpStatus.OK, 'Jobs retrieved successfully.', allJobs);
+
+  } catch (error) {
+    console.error('Error in getJobs:', error);
+    next(new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Unable to fetch jobs.'));
+  }
+};
+
 
 
 

@@ -3,6 +3,7 @@
 import { useState, useRef } from "react"
 import { Link, useNavigate } from "react-router-dom"
 import { motion } from "framer-motion"
+import { toast } from 'react-hot-toast';
 
 function ClientRegister() {
     const navigate = useNavigate()
@@ -140,8 +141,10 @@ function ClientRegister() {
             }
 
             // Registration successful
-            alert("Registration successful! Please check your email to verify your account.");
-            navigate("/");
+           toast.success("Registration successful! Please check your email to verify your account.");
+                 
+// In the handleSubmit function, after successful registration:
+          navigate("/verify-email", { state: { email: formData.email } });
         } catch (err) {
             setError(err.message || "Something went wrong. Please try again.");
         } finally {
@@ -151,7 +154,7 @@ function ClientRegister() {
 
     return (
         <div className="container mx-auto px-4 py-8 flex flex-col items-center min-h-screen">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center p-4 my-4 gap-2">
                 <svg
                     width="24"
                     height="24"
@@ -169,7 +172,7 @@ function ClientRegister() {
                         strokeLinejoin="round"
                     />
                 </svg>
-                <span className="text-xl font-bold text-[#9333EA]">GoWithFlow</span>
+                <span className="text-2xl font-bold text-[#9333EA]">GoWithFlow</span>
             </div>
             <motion.div
                 className="w-full max-w-xl bg-gray-900 rounded-xl p-8 shadow-2xl"
@@ -228,7 +231,11 @@ function ClientRegister() {
                                     className="w-full h-full object-cover"
                                 />
                             ) : (
-                                <span className="text-4xl">👤</span>
+                                <img
+                                src='https://res.cloudinary.com/dxmeatsae/image/upload/v1745522051/client_verification_docs/vtby102ctjupyjon629f.png'
+                                alt="Profile preview"
+                                className="w-full h-full object-cover"
+                            />
                             )}
                             <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/*" className="hidden" />
                         </motion.div>
@@ -397,7 +404,7 @@ function ClientRegister() {
                     transition={{ delay: 0.5 }}
                 >
                     Already have an account?{" "}
-                    <Link to="/" className="text-purple-500 hover:text-purple-400 font-medium">
+                    <Link to="/login" className="text-purple-500 hover:text-purple-400 font-medium">
                         Login
                     </Link>
                 </motion.p>

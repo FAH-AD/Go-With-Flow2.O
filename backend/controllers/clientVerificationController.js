@@ -19,30 +19,30 @@ const isEducationEmail = (domain) => {
 };
 
 const isCompanyEmail = (domain) => {
-  return !freeEmailDomains.includes(domain) && !isEducationEmail(domain);
+  return !freeEmailDomains.includes(domain);
+  //  && !isEducationEmail(domain);
 };
 export const requestClientVerification = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user._id);
-  const { method } = req.body;
+  const { method, fileUrl } = req.body;
   console.log('BODY:', req.body);
-  console.log('FILES:', req.files);
   console.log('USER:', req.user);
+
   if (!['document', 'companyEmail'].includes(method)) {
     res.status(400);
     throw new Error('Invalid verification method');
   }
 
   if (method === 'document') {
-    if (!req.files || req.files.length === 0) {
+    if (!fileUrl) {
       res.status(400);
-      throw new Error('At least one document is required');
+      throw new Error('Document URL is required');
     }
 
-    const fileUrls = req.files.map(file => file.path);
     user.clientVerification = {
       method,
       status: 'pending',
-      document: fileUrls,
+      document: fileUrl,
     };
 
     await user.save();
@@ -51,7 +51,7 @@ export const requestClientVerification = asyncHandler(async (req, res) => {
     await sendEmail({
       to: 'alyfahad355@gmail.com',
       subject: 'Client Verification Request',
-      text: `User ${user.name} has submitted documents for verification.\n\nDocument URLs:\n${fileUrls.join('\n')}`,
+      text: `User ${user.name} has submitted a document for verification.\n\nDocument URL: ${fileUrl}`,
     });
 
     return res.status(200).json({ message: 'Document submitted for verification' });

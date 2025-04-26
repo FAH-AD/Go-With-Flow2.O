@@ -28,7 +28,7 @@ function RoleSelection() {
 
   return (
     <div className="container mx-auto px-4 py-8 flex flex-col items-center min-h-screen">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center my-4 p-4 gap-2">
           <svg
             width="24"
             height="24"
@@ -46,7 +46,7 @@ function RoleSelection() {
               strokeLinejoin="round"
             />
           </svg>
-          <span className="text-xl font-bold text-[#9333EA]">GoWithFlow</span>
+          <span className="text-3xl font-bold text-[#9333EA]">GoWithFlow</span>
         </div>
 
       <motion.div

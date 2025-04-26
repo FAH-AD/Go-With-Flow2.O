@@ -4,7 +4,6 @@ import {
   verifyCompanyEmailCode,
 } from '../controllers/clientVerificationController.js';
 import { protect } from '../middleware/auth.js';
-import {upload} from '../middleware/upload.js'; // Multer setup (with Cloudinary)
 
 const router = express.Router();
 
@@ -12,7 +11,6 @@ const router = express.Router();
 router.post(
   '/verify',
   protect,
-  upload.array('documents',5), // to handle multiple file uploads
   requestClientVerification
 );
 
