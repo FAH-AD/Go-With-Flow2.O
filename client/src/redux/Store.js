@@ -2,6 +2,7 @@ import { configureStore } from '@reduxjs/toolkit';
 import AuthSlice from './AuthSlice';
 import storage from 'redux-persist/lib/storage';
 import { persistReducer, persistStore } from 'redux-persist';
+import messagingReducer from './slices/messagingSlice';
 
 const persistConfig = {
     key: 'root',
@@ -12,7 +13,8 @@ const persistedReducer = persistReducer(persistConfig, AuthSlice);
 
 export const store = configureStore({
     reducer: {
-        Auth: persistedReducer
+        Auth: persistedReducer,
+        messaging:messagingReducer
     },
     middleware: (getDefaultMiddleware) =>
         getDefaultMiddleware({

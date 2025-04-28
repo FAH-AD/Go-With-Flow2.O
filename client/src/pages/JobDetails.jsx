@@ -11,7 +11,7 @@ const JobDetails = () => {
     const fetchJob = async () => {
       try {
         const { data } = await axios.get(`http://localhost:5000/api/jobs/${id}`);
-      
+       console.log(data, "data in job details");
         setJob({ ...data.job});
       } catch (err) {
         console.error('Error fetching job details:', err);

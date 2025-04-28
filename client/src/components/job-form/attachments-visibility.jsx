@@ -177,7 +177,7 @@ const AttachmentsVisibility = ({ jobData, handleChange }) => {
       </div>
 
       {/* Promotion Option */}
-      <div className="mt-8">
+      {/* <div className="mt-8">
         <div
           className={`flex items-center justify-between p-4 border ${
             jobData.isPromoted ? "border-[#9333EA] bg-[#9333EA]/10" : "border-[#2d2d3a] bg-[#1e1e2d]"
@@ -198,7 +198,8 @@ const AttachmentsVisibility = ({ jobData, handleChange }) => {
             <div className="w-11 h-6 bg-[#2d2d3a] peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[#9333EA] rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[#9333EA]"></div>
           </div>
         </div>
-      </div>
+      </div> */}
+
     </div>
   )
 }

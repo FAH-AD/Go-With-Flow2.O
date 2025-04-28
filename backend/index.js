@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import connectDB from './config/db.js';
 import { Server } from 'socket.io';
 import http from 'http';
+import handleSocketEvents from './socket.js';
 
 // Load environment variables
 dotenv.config();
@@ -29,6 +30,7 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const server = http.createServer(app);
 
+
 const corsOptions = {
   origin: 'http://localhost:5173', // or your frontend URL
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
@@ -37,25 +39,23 @@ const corsOptions = {
   optionsSuccessStatus: 200
 };
 
+
 app.use(cors(corsOptions));
 const io = new Server(server, {
-  cors: corsOptions
+  pingInterval: 10000,
+  pingTimeout: 5000,
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"],
+  },
 });
 
 // socket.io
-global.io = io;
+handleSocketEvents(io);
 
-io.on('connection', (socket) => {
-  console.log('A user connected');
 
-  socket.on('join', (userId) => {
-    socket.join(userId); // Join room by user ID for direct messaging
-  });
 
-  socket.on('disconnect', () => {
-    console.log('User disconnected');
-  });
-});
+
 
 // Connect to database
 connectDB();

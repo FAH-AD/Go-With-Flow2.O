@@ -114,8 +114,12 @@ const PostJob = () => {
 
       // Add basic job data
       Object.keys(jobData).forEach((key) => {
-        if (key !== "attachments" && key !== "crowdsourcingRoles") {
-          formDataToSend.append(key, typeof jobData[key] === "object" ? JSON.stringify(jobData[key]) : jobData[key])
+        if (key === "skills") {
+          jobData.skills.forEach((skill, index) => {
+            formDataToSend.append(`skills[${index}]`, skill);
+          });
+        } else if (key !== "attachments" && key !== "crowdsourcingRoles") {
+          formDataToSend.append(key, typeof jobData[key] === "object" ? JSON.stringify(jobData[key]) : jobData[key]);
         }
       })
 
@@ -123,7 +127,14 @@ const PostJob = () => {
       if (jobData.isCrowdsourced && jobData.crowdsourcingRoles.length > 0) {
         jobData.crowdsourcingRoles.forEach((role, index) => {
           Object.keys(role).forEach(key => {
-            formDataToSend.append(`crowdsourcingRoles[${index}][${key}]`, role[key]);
+            if (key === 'skills') {
+              // Append each skill separately
+              role.skills.forEach((skill, skillIndex) => {
+                formDataToSend.append(`crowdsourcingRoles[${index}][skills][${skillIndex}]`, skill);
+              });
+            } else {
+              formDataToSend.append(`crowdsourcingRoles[${index}][${key}]`, role[key]);
+            }
           });
         });
       }

@@ -30,6 +30,7 @@ export const submitBid = async (req, res) => {
         message: 'Job not found',
       });
     }
+  
 
     // Step 2: Check if the freelancer has already bid on this job
     const existingBid = await Bid.findOne({
@@ -162,6 +163,8 @@ export const getBidsByJob = async (req, res) => {
     });
     
     let organizedBids;
+    const currentUserBid = bids.find(bid => bid.freelancer._id.toString() === req.user._id.toString());
+    const hasApplied = !!currentUserBid;
 
     if (job.isCrowdsourced) {
       organizedBids = job.crowdsourcingRoles.reduce((acc, role) => {
@@ -174,7 +177,11 @@ export const getBidsByJob = async (req, res) => {
             profilePicture: bid.freelancer.profilePic,
             successRate: bid.freelancer.successRate,
             completedJobs: bid.freelancer.completedJobs
-          }
+          },
+          offerSent: job.teamOffers.some(offer => 
+            offer.freelancer.toString() === bid.freelancer._id.toString() && 
+            offer.role === bid.role
+          )
         }));
         return acc;
       }, {});
@@ -188,7 +195,10 @@ export const getBidsByJob = async (req, res) => {
           profilePicture: bid.freelancer.profilePic,
           successRate: bid.freelancer.successRate,
           completedJobs: bid.freelancer.completedJobs
-        }
+        },
+        offerSent: job.offers.some(offer => 
+          offer.freelancer.toString() === bid.freelancer._id.toString()
+        )
       }));
     }
 
@@ -204,9 +214,10 @@ export const getBidsByJob = async (req, res) => {
     }
 
     return successResponse(res, 200, 'Bids retrieved successfully', { 
-      jobTitle: job.title,  // Include the job title in the response
+      jobTitle: job.title,
       isCrowdsourced: job.isCrowdsourced,
-      bids: organizedBids 
+      bids: organizedBids,
+      hasApplied
     });
   } catch (error) {
     console.error('Get bids by job error:', error);
@@ -252,7 +263,7 @@ export const getMyBids = async (req, res) => {
       .limit(limit)
       .sort({ createdAt: -1 });
     
-    return successResponse(res, {
+    return successResponse(res,200, {
       bids,
       page,
       limit,
@@ -261,7 +272,7 @@ export const getMyBids = async (req, res) => {
     });
   } catch (error) {
     console.error('Get my bids error:', error);
-    return errorResponse(res, error.message, 500);
+    return errorResponse(res,500, error.message);
   }
 };
 
@@ -485,6 +496,85 @@ export const markBidAsRead = async (req, res) => {
     return successResponse(res, 200, 'Bid marked as read successfully');
   } catch (error) {
     console.error('Mark bid as read error:', error);
+    return errorResponse(res, 500, 'Server error');
+  }
+};
+
+export const getBidStats = async (req, res) => {
+  try {
+    const jobId = req.params.jobId;
+    const job = await Job.findById(jobId);
+
+    if (!job) {
+      return errorResponse(res, 404, 'Job not found');
+    }   
+
+    // Get total bids
+    const totalBids = await Bid.countDocuments({ job: jobId });
+
+    // Get total interviewing
+    const totalInterviewing = job.interviewedFreelancers.length;
+
+    // Get total hires
+    let totalHires = 0;
+    if (job.isCrowdsourced) {
+      totalHires = job.team.length;
+    } else if (job.hiredFreelancer) {
+      totalHires = 1;
+    }
+
+    // Get bids by status
+    const bidsByStatus = await Bid.aggregate([
+      { $match: { job: job._id } },
+      { $group: { _id: '$status', count: { $sum: 1 } } }
+    ]);
+
+    const bidStats = {
+      totalBids,
+      totalInterviewing,
+      totalHires,
+      bidsByStatus: Object.fromEntries(bidsByStatus.map(item => [item._id, item.count])),
+      jobStatus: job.status
+    };
+
+    return successResponse(res, 200, 'Bid stats retrieved successfully', bidStats);
+  } catch (error) {
+    console.error('Get bid stats error:', error);
+    return errorResponse(res, 500, 'Server error');
+  }
+};
+
+/**
+ * @desc    Get freelancer's bid for a specific job
+ * @route   GET /api/bids/job/:jobId/freelancer
+ * @access  Private/Freelancer
+ */
+export const getFreelancerBidForJob = async (req, res) => {
+  try {
+    const jobId = req.params.jobId;
+    const freelancerId = req.user._id;
+
+    const bid = await Bid.findOne({ job: jobId, freelancer: freelancerId })
+      .populate('job', 'title status')
+      .lean();
+
+    if (!bid) {
+      return successResponse(res, 200, 'Freelancer has not bid on this job', { hasApplied: false });
+    }
+
+    return successResponse(res, 200, 'Bid retrieved successfully', {
+      hasApplied: true,
+      bid: {
+        ...bid,
+        job: {
+          _id: bid.job._id,
+          title: bid.job.title,
+          status: bid.job.status
+        }
+      }
+    });
+  } catch (error) {
+    console.error('Get freelancer bid for job error:', error);
     return errorResponse(res, 500, 'Server error');
   }
 };

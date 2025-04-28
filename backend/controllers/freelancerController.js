@@ -2,9 +2,10 @@ import Job from '../models/Job.js';
 import User from '../models/User.js';
 import Notification from '../models/Notification.js';
 import { sendEmail } from '../utils/sendEmail.js';
-import { customErrorHandler, successResponse } from '../utils/apiResponse.js';
+import { customErrorHandler, successResponse, errorResponse } from '../utils/apiResponse.js';
 import mongoose from 'mongoose';
 import { createMilestoneEscrowPayment } from '../controllers/paymentController.js';
+import Bid from '../models/Bid.js';
 
 // Freelancer responds to a job offer
 export const respondToJobOffer = async (req, res) => {
@@ -31,6 +32,12 @@ export const respondToJobOffer = async (req, res) => {
       offer.status = 'accepted';
       job.status = 'in-progress';
       job.hiredFreelancer = req.user._id;
+
+      // Update the bid status
+      await Bid.findOneAndUpdate(
+        { job: jobId, freelancer: req.user._id },
+        { status: 'accepted' }
+      );
 
       const milestoneId = new mongoose.Types.ObjectId();
       const initialMilestone = {
@@ -299,7 +306,6 @@ export const respondToTeamOffer = async (req, res) => {
 };
 
 // Get all pending offers for a freelancer
-// Get all pending offers for a freelancer
 export const getPendingOffers = async (req, res) => {
   try {
     const jobs = await Job.find({
@@ -307,7 +313,8 @@ export const getPendingOffers = async (req, res) => {
         { 'offers': { $elemMatch: { freelancer: req.user._id, status: 'pending' } } },
         { 'teamOffers': { $elemMatch: { freelancer: req.user._id, status: 'pending' } } }
       ]
-    }).select('title client offers teamOffers');
+    }).select('title client offers teamOffers isCrowdsourced')
+      .populate('client', 'name profilePic companyName');
 
     const pendingOffers = jobs.flatMap(job => {
       const individualOffers = job.offers
@@ -315,27 +322,34 @@ export const getPendingOffers = async (req, res) => {
         .map(offer => ({
           jobId: job._id,
           jobTitle: job.title,
-          client: job.client,
+          client: {
+            _id: job.client._id,
+            name: job.client.name,
+            profilePic: job.client.profilePic,
+            companyName: job.client.companyName
+          },
           offerType: 'individual',
-          
-          
+          isCrowdsourced: job.isCrowdsourced,
           ...offer.toObject()
-        }
-    
-    ));
+        }));
     
       const teamOffers = job.teamOffers
         .filter(offer => offer.freelancer.toString() === req.user._id.toString() && offer.status === 'pending')
         .map(offer => ({
           jobId: job._id,
           jobTitle: job.title,
-          client: job.client,
+          client: {
+            _id: job.client._id,
+            name: job.client.name,
+            profilePic: job.client.profilePic,
+            companyName: job.client.companyName
+          },
           offerType: 'team',
+          isCrowdsourced: job.isCrowdsourced,
           title: offer.milestoneTitle,
           description: offer.milestoneDescription,
           amount: offer.milestoneAmount,
-          deadline: offer.milestoneDeadline
-          ,
+          deadline: offer.milestoneDeadline,
           ...offer.toObject()
         }));
 
@@ -347,3 +361,66 @@ export const getPendingOffers = async (req, res) => {
     return customErrorHandler(res, error);
   }
 };
+
+export const searchFreelancers = async (req, res) => {
+  try {
+    const {
+      title,
+      skills,
+      hourlyRate,
+      availability,
+      rating,
+      page = 1,
+      limit = 10,
+      sortBy = 'createdAt',
+      sortOrder = 'desc'
+    } = req.query;
+
+    const query = { role: 'freelancer', isActive: true };
+
+    if (title) {
+      query.title = { $regex: title, $options: 'i' };
+    }
+
+    if (skills) {
+      query.skills = { $in: skills.split(',').map(skill => new RegExp(skill.trim(), 'i')) };
+    }
+
+    if (hourlyRate) {
+      const [min, max] = hourlyRate.split('-');
+      query.hourlyRate = {};
+      if (min) query.hourlyRate.$gte = parseFloat(min);
+      if (max) query.hourlyRate.$lte = parseFloat(max);
+    }
+
+    if (availability) {
+      query.availability = availability;
+    }
+
+    if (rating) {
+      query.successRate = { $gte: parseFloat(rating) };
+    }
+
+    const options = {
+      page: parseInt(page),
+      limit: parseInt(limit),
+      sort: { [sortBy]: sortOrder === 'asc' ? 1 : -1 },
+      select: 'name title skills hourlyRate availability successRate completedJobs profilePic',
+      lean: true
+    };
+
+    const freelancers = await User.paginate(query, options);
+
+    return successResponse(res, 200, 'Freelancers retrieved successfully', {
+      freelancers: freelancers.docs,
+      currentPage: freelancers.page,
+      totalPages: freelancers.totalPages,
+      totalFreelancers: freelancers.totalDocs
+    });
+  } catch (error) {
+    console.error('Search freelancers error:', error);
+    return errorResponse(res, 500, 'Server error');
+  }
+};
+
+

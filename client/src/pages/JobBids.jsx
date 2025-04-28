@@ -1,66 +1,96 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { useParams } from 'react-router-dom';
-import Navbar from '../components/Navbar';
-import { DollarSign, Clock, Paperclip, MessageSquare, UserCheck, Briefcase, Star, CheckCircle, X, ExternalLink, ChevronDown } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+"use client"
+
+import { useState, useEffect } from "react"
+import axios from "axios"
+import { useParams } from "react-router-dom"
+import Navbar from "../components/Navbar"
+import {
+  DollarSign,
+  Clock,
+  Paperclip,
+  MessageSquare,
+  UserCheck,
+  Briefcase,
+  Star,
+  CheckCircle,
+  X,
+  ExternalLink,
+  ChevronDown,
+} from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
+import HirePopup from "../components/HirePopup"
 
 const JobBids = () => {
-  const [bids, setBids] = useState(null);
-  const [job, setJob] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [selectedBid, setSelectedBid] = useState(null);
-  const [selectedRole, setSelectedRole] = useState('');
-  const { jobId } = useParams();
-  const token = localStorage.getItem('authToken');
+  const [bids, setBids] = useState(null)
+  const [job, setJob] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+  const [selectedBid, setSelectedBid] = useState(null)
+  const [selectedRole, setSelectedRole] = useState("")
+  const [roles,setRoles] = useState([])
+  const { jobId } = useParams()
+  const token = localStorage.getItem("authToken")
+  const [hirePopupOpen, setHirePopupOpen] = useState(false)
+  const [freelancerId, setFreelancerId] = useState(null)
+  const [selectedBidForHire, setSelectedBidForHire] = useState(null)
+
+  const openHirePopup = (bid,freelancerId) => {
+    setSelectedBidForHire(bid)
+    setFreelancerId(freelancerId)
+    setHirePopupOpen(true)
+  }
 
   useEffect(() => {
     const fetchBids = async () => {
       try {
         const response = await axios.get(`http://localhost:5000/api/bids/job/${jobId}`, {
           headers: {
-            Authorization: `Bearer ${token}`
-          }
-        });
-        console.log(response.data.data);
-        setBids(response.data.data.bids);
-        setJob(response.data.data);
+            Authorization: `Bearer ${token}`,
+          },
+        })
+        console.log(response.data.data, "bids data")
+        setBids(response.data.data.bids)
+      
+        setJob(response.data.data)
+   console.log(Object.keys(response.data.data.bids) , "bid roles")
+   setRoles(Object.keys(response.data.data.bids))
         if (response.data.data.isCrowdsourced) {
-          setSelectedRole(Object.keys(response.data.data.bids)[0]);
+          setSelectedRole(Object.keys(response.data.data.bids)[0] || "")
         }
-        setLoading(false);
+        setLoading(false)
       } catch (err) {
-        setError('Failed to fetch bids');
-        setLoading(false);
+        setError("Failed to fetch bids")
+        setLoading(false)
       }
-    };
+    }
 
-    fetchBids();
-  }, [jobId, token]);
+    fetchBids()
+  }, [jobId, token])
 
-  const handleHire = (bidId) => {
-    // Implement hire functionality
-    console.log(`Hiring for bid ${bidId}`);
-  };
+  const handleHire = (bidId,freelancerId) => {
+    openHirePopup(bidId,freelancerId)
+  }
 
   const handleMessage = (freelancerId) => {
     // Implement message functionality
-    console.log(`Messaging freelancer ${freelancerId}`);
-  };
+    console.log(`Messaging freelancer ${freelancerId}`)
+  }
 
   const handleViewDetails = (bid) => {
-    setSelectedBid(bid);
-  };
+    setSelectedBid(bid)
+  }
 
   const closePopup = () => {
-    setSelectedBid(null);
-  };
+    setSelectedBid(null)
+  }
 
-  if (loading) return <div className="min-h-screen bg-[#0a0a0f] text-white flex items-center justify-center">
-    <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-[#9333EA]"></div>
-  </div>;
-  if (error) return <div className="text-red-500 text-center">{error}</div>;
+  if (loading)
+    return (
+      <div className="min-h-screen bg-[#0a0a0f] text-white flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-t-2 border-b-2 border-[#9333EA]"></div>
+      </div>
+    )
+  if (error) return <div className="text-red-500 text-center">{error}</div>
 
   const renderBids = (bidsToRender) => {
     if (!bidsToRender || bidsToRender.length === 0) {
@@ -73,7 +103,7 @@ const JobBids = () => {
         >
           No bids for this role yet.
         </motion.div>
-      );
+      )
     }
 
     return bidsToRender.map((bid, index) => (
@@ -84,12 +114,19 @@ const JobBids = () => {
         transition={{ duration: 0.5, delay: index * 0.1 }}
         className="bg-[#1c1c24] rounded-lg shadow-md p-6 transition duration-300 ease-in-out transform hover:scale-105"
       >
-        <div className="flex items-center mb-4">
-          <img src={bid.freelancer.profilePicture} alt={bid.freelancer.name} className="w-12 h-12 rounded-full mr-4" />
+        <div className="flex items-center gap-2 mb-4">
+          <img
+            src={
+              bid.freelancer.profilePicture ||
+              "https://res.cloudinary.com/dxmeatsae/image/upload/v1745772539/client_verification_docs/mhpbkpi3vnkejxe0kpai.png"
+            }
+            alt={bid.freelancer.name}
+            className="w-12 h-10 rounded-full "
+          />
           <div>
             <h3 className="text-xl font-semibold text-white">{bid.freelancer.name}</h3>
-            <div className='flex items-center gap-4 mt-1'>
-              <div className="flex items-center  mt-1">
+            <div className="flex items-center gap-4 mt-1">
+              <div className="flex items-center mt-1">
                 <Star className="text-yellow-400 mr-1" size={16} />
                 <span className="text-sm text-gray-300 text-nowrap">{bid.freelancer.successRate}% Success Rate</span>
               </div>
@@ -101,7 +138,12 @@ const JobBids = () => {
           </div>
         </div>
         <div className="mb-4">
-          <p className="text-gray-300">{bid.proposal.length > 150 ? `${bid.proposal.substring(0, 150)}...` : bid.proposal}</p>
+          <p className="text-gray-300">
+            {bid.proposal.length > 150 ? `${bid.proposal.substring(0, 150)}...` : bid.proposal}....
+            <span className="text-[#9333EA] cursor-pointer hover:underline" onClick={() => handleViewDetails(bid)}>
+              View Details
+            </span>
+          </p>
         </div>
         <div className="flex items-center mb-2">
           <DollarSign className="text-[#9333EA] mr-2" size={18} />
@@ -109,45 +151,50 @@ const JobBids = () => {
         </div>
         <div className="flex items-center mb-2">
           <Clock className="text-[#9333EA] mr-2" size={18} />
-          <span className="text-gray-300">{bid.deliveryTime} {bid.deliveryTimeUnit}</span>
+          <span className="text-gray-300">
+            {bid.deliveryTime} {bid.deliveryTimeUnit}
+          </span>
         </div>
         <div className="flex items-center mb-4">
           <Paperclip className="text-[#9333EA] mr-2" size={18} />
           <span className="text-gray-300">{bid.attachments.length} attachment(s)</span>
         </div>
-        <div className="flex justify-between">
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => handleViewDetails(bid)}
-            className="bg-[#2D3748] text-white px-4 py-2 rounded-md flex items-center transition duration-300 ease-in-out hover:bg-[#4A5568]"
-          >
-            View Details
-          </motion.button>
-        </div>
+
         <div className="flex justify-between mt-6">
+          {bid.offerSent ? (
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
-              onClick={() => handleHire(bid._id)}
+              className="bg-gray-500 text-white px-6 py-2 rounded-md flex items-center transition duration-300 ease-in-out cursor-not-allowed"
+              disabled
+            >
+              <CheckCircle className="mr-2" size={18} />
+              Offer Sent
+            </motion.button>
+          ) : (
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => handleHire(bid._id,bid.freelancer._id)}
               className="bg-[#9333EA] text-white px-6 py-2 rounded-md flex items-center transition duration-300 ease-in-out hover:bg-[#7928CA]"
             >
               <UserCheck className="mr-2" size={18} />
               Hire
             </motion.button>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => handleMessage(bid.freelancer._id)}
-              className="bg-[#2D3748] text-white px-6 py-2 rounded-md flex items-center transition duration-300 ease-in-out hover:bg-[#4A5568]"
-            >
-              <MessageSquare className="mr-2" size={18} />
-              Message
-            </motion.button>
-          </div>
+          )}
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => handleMessage(bid.freelancer._id)}
+            className="bg-[#2D3748] text-white px-6 py-2 rounded-md flex items-center transition duration-300 ease-in-out hover:bg-[#4A5568]"
+          >
+            <MessageSquare className="mr-2" size={18} />
+            Message
+          </motion.button>
+        </div>
       </motion.div>
-    ));
-  };
+    ))
+  }
 
   const BidDetailsPopup = ({ bid }) => (
     <motion.div
@@ -170,7 +217,14 @@ const JobBids = () => {
         </div>
         <div className="space-y-4">
           <div className="flex items-center">
-            <img src={bid.freelancer.profilePicture} alt={bid.freelancer.name} className="w-16 h-16 rounded-full mr-4" />
+            <img
+              src={
+                bid.freelancer.profilePicture ||
+                "https://res.cloudinary.com/dxmeatsae/image/upload/v1745772539/client_verification_docs/mhpbkpi3vnkejxe0kpai.png"
+              }
+              alt={bid.freelancer.name}
+              className="w-16 h-16 rounded-full mr-4"
+            />
             <div>
               <h3 className="text-xl font-semibold text-white">{bid.freelancer.name}</h3>
               <div className="flex items-center gap-4 mt-1">
@@ -195,30 +249,48 @@ const JobBids = () => {
           </div>
           <div className="flex items-center">
             <Clock className="text-[#9333EA] mr-2" size={18} />
-            <span className="text-gray-300">{bid.deliveryTime} {bid.deliveryTimeUnit}</span>
+            <span className="text-gray-300">
+              {bid.deliveryTime} {bid.deliveryTimeUnit}
+            </span>
           </div>
           <div>
             <h4 className="text-lg font-semibold text-white mb-2">Attachments</h4>
             <ul className="list-disc list-inside text-gray-300">
               {bid.attachments.map((attachment, index) => (
-                <li key={index} className="flex items-center">
-                  <a href={attachment.url} target="_blank" rel="noopener noreferrer" className="text-[#9333EA] hover:underline flex items-center">
-                    {attachment.name} <ExternalLink size={14} className="ml-1" />
-                  </a>
-                </li>
+                <a
+                  href={attachment}
+                  key={index}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[#9333EA] hover:underline flex items-center"
+                >
+                  Attachment No. {index + 1} <ExternalLink size={14} className="ml-1" />
+                </a>
               ))}
             </ul>
           </div>
           <div className="flex justify-between mt-6">
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => handleHire(bid._id)}
-              className="bg-[#9333EA] text-white px-6 py-2 rounded-md flex items-center transition duration-300 ease-in-out hover:bg-[#7928CA]"
-            >
-              <UserCheck className="mr-2" size={18} />
-              Hire
-            </motion.button>
+            {bid.offerSent ? (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="bg-gray-500 text-white px-6 py-2 rounded-md flex items-center transition duration-300 ease-in-out cursor-not-allowed"
+                disabled
+              >
+                <CheckCircle className="mr-2" size={18} />
+                Offer Sent
+              </motion.button>
+            ) : (
+              <motion.button
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                onClick={() => handleHire(job.isCrowdsourced ? bid.freelancer._id : bid._id)}
+                className="bg-[#9333EA] text-white px-6 py-2 rounded-md flex items-center transition duration-300 ease-in-out hover:bg-[#7928CA]"
+              >
+                <UserCheck className="mr-2" size={18} />
+                Hire
+              </motion.button>
+            )}
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -232,7 +304,7 @@ const JobBids = () => {
         </div>
       </motion.div>
     </motion.div>
-  );
+  )
 
   return (
     <div className="min-h-screen bg-[#0a0a0f] text-white">
@@ -247,16 +319,16 @@ const JobBids = () => {
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between w-full">
             <div>
-            <div className="flex items-center">
-  <Briefcase className="text-[#9333EA] mr-2" size={24} />
-  <h1 className="text-2xl md:text-3xl font-bold">Bids for {job?.jobTitle}</h1>
-</div>
-<p className="text-gray-400 mt-1">Manage and track bids for your posted job</p>
-</div>
+              <div className="flex items-center">
+                <Briefcase className="text-[#9333EA] mr-2" size={24} />
+                <h1 className="text-2xl md:text-3xl font-bold">Bids for {job?.jobTitle}</h1>
+              </div>
+              <p className="text-gray-400 mt-1">Manage and track bids for your posted job</p>
+            </div>
           </div>
         </div>
       </motion.div>
-      
+
       <div className="container mx-auto px-4 py-8">
         <motion.h2
           initial={{ opacity: 0, y: -20 }}
@@ -280,7 +352,9 @@ const JobBids = () => {
                   className="block appearance-none w-full bg-[#1c1c24] border border-[#2d2d3a] text-white py-3 px-4 pr-8 rounded leading-tight focus:outline-none focus:bg-[#2d2d3a] focus:border-[#9333EA]"
                 >
                   {Object.keys(bids || {}).map((role) => (
-                    <option key={role} value={role}>{role}</option>
+                    <option key={role} value={role}>
+                      {role}
+                    </option>
                   ))}
                 </select>
                 <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-400">
@@ -293,16 +367,25 @@ const JobBids = () => {
             </div>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {renderBids(bids)}
-          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{renderBids(bids)}</div>
         )}
       </div>
+      <AnimatePresence>{selectedBid && <BidDetailsPopup bid={selectedBid} />}</AnimatePresence>
+
       <AnimatePresence>
-        {selectedBid && <BidDetailsPopup bid={selectedBid} />}
+        {hirePopupOpen && (
+          <HirePopup
+            bid={selectedBidForHire}
+            onClose={() => setHirePopupOpen(false)}
+            jobId={jobId}
+            isCrowdsourced={job?.isCrowdsourced}
+            roles={job?.isCrowdsourced ? roles.map((role) => role) : []}
+            freelancerId={freelancerId}
+          />
+        )}
       </AnimatePresence>
     </div>
-  );
-};
+  )
+}
 
-export default JobBids;
+export default JobBids

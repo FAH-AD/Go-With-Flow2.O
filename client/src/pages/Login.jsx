@@ -8,6 +8,7 @@ import { SetUser } from '../redux/AuthSlice';
 import Navbar from '../components/Navbar';
 import login from '../assets/login-img.png';
 import { Eye, EyeOff } from "lucide-react";
+import webSocketSingleton from '../socket';
 
 export default function Login() {
   const user = useSelector((state) => state.Auth);
@@ -31,6 +32,7 @@ export default function Login() {
 
       if (response.status === 200) {
         const { token, user, message } = response.data.data;
+        webSocketSingleton.init(token)
         console.log(response.data, "response data");
 
         localStorage.setItem("authToken", token);

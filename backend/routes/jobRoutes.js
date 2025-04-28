@@ -18,7 +18,11 @@ import {
   approveMilestone,
   getAllClientJobs,
   getJobMilestones,
-  getAllJobs
+  getAllJobs,
+  saveJob,
+  unsaveJob,
+  searchJobs,
+  getClientCrowdsourcedJobs
 } 
 from '../controllers/jobController.js';
 import { protect, authorize, isVerified } from '../middleware/auth.js';
@@ -30,12 +34,16 @@ const router = express.Router();
 // Public routes
 router.get('/', protect, getJobs);
 router.get('/all-jobs', protect, getAllJobs);
-router.get('/:id', getJobById);
+router.get('/search',protect,isFreelancer, searchJobs);
+router.get('/teams', protect,isClient, getClientCrowdsourcedJobs);
+ router.get('/:id', getJobById);
+
 
 // Protected routes
 router.post('/', protect, isVerified, isClient, upload.array(5), createJob);
 router.put('/:id', protect, isVerified, isClient, upload.array(5), updateJob);
 router.delete('/:id', protect, isClientOrAdmin, deleteJob);
+
 
 // Client routes
 router.get('/my/posted-jobs', protect, isClient, getMyPostedJobs);
@@ -61,5 +69,11 @@ router.get('/:id/milestones', protect, getJobMilestones); // Added new route
 
 // Route to get all jobs posted by all clients
 router.get('/all', protect, getAllClientJobs);
+
+// Save a job
+router.post('/:id/save', protect, isVerified, saveJob);
+
+// Unsave a job
+router.delete('/:id/unsave', protect, isVerified, unsaveJob);
 
 export default router;

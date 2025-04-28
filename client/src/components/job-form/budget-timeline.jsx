@@ -54,11 +54,11 @@ const BudgetTimeline = ({ jobData, handleChange }) => {
         {/* Budget */}
         <div className="space-y-2">
           <label className="block text-sm font-medium text-gray-300">
-            Budget (USD) <span className="text-red-500">*</span>
+            Budget (PKR) <span className="text-red-500">*</span>
           </label>
           <div className="relative">
             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <DollarSign size={18} className="text-gray-400" />
+             <span className="mr-2 text-[13px]">PKR</span>
             </div>
             <input
               type="number"
@@ -104,7 +104,7 @@ const BudgetTimeline = ({ jobData, handleChange }) => {
         </label>
         <div className="relative">
           <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-            <Calendar size={18} className="text-gray-400" />
+            <Calendar size={18} className="text-gray-200" />
           </div>
           <input
             type="date"
@@ -196,7 +196,7 @@ const BudgetTimeline = ({ jobData, handleChange }) => {
               jobData.crowdsourcingRoles.map((role, index) => (
                 <div key={index} className="p-4 border border-[#2d2d3a] rounded-md bg-[#121218] space-y-3">
                   <div className="flex justify-between items-center">
-                    <h5 className="font-medium">Role #{index + 1}</h5>
+                    <h5 className="font-medium">Role No.{index + 1}</h5>
                     <button
                       type="button"
                       onClick={() => removeRole(index)}
@@ -292,11 +292,11 @@ const BudgetTimeline = ({ jobData, handleChange }) => {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-300 mb-1">
-                        Budget for this role (USD) <span className="text-red-500">*</span>
+                        Budget for this role (PKR) <span className="text-red-500">*</span>
                       </label>
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                          <DollarSign size={16} className="text-gray-400" />
+                          <span className="text-[13px] text-green-300">PKR</span>
                         </div>
                         <input
                           type="number"

@@ -23,7 +23,7 @@ const Navbar = () => {
       if (isAuthenticated && user?.role === 'client' && token) {
         console.log("Attempting to fetch profile with token:", token);
         try {
-          const response = await fetch('http://localhost:5000/api/user-profile/profile', {
+          const response = await fetch(`http://localhost:5000/api/user-profile/${user._id}`, {
             method: 'GET',
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -36,7 +36,6 @@ const Navbar = () => {
           }
 
           const data = await response.json();
-          console.log("Profile fetch response:", data.data.user);
           setUserProfile(data.data.user);
           localStorage.setItem('userStatus', data.data.user.clientVerification.status); // Store profile in localStorage
         } catch (error) {
@@ -116,14 +115,16 @@ const Navbar = () => {
       case "client":
         return [
           { name: "Dashboard", href: "/client" },
-          { name: "Find Talent", href: "/talent" },
+          { name: "Find Talent", href: "/client/search-freelancers" },
           { name: "My Jobs", href: "/client/my-jobs" },
           { name: "Messages", href: "client/messages" },
         ];
       case "freelancer":
         return [
           { name: "Dashboard", href: "/freelancer" },
-          { name: "Find Work", href: "/freelancer/jobs" },
+          { name: "Find Work", href: "/freelancer/search-job" },
+          { name: "My Proposals", href: "/freelancer/my-proposals" },
+          { name: "Hire Offers", href: "/freelancer/hire-offers" },
           { name: "Messages", href: "/freelancer/messages" },
         ];
       default:
@@ -139,7 +140,7 @@ const Navbar = () => {
     }
 
     const clientVerification = userProfile.clientVerification || {};
-   
+
 
     switch (clientVerification.status) {
       case 'not-verified':
@@ -173,9 +174,8 @@ const Navbar = () => {
 
   return (
     <header
-      className={`sticky top-0 z-40 w-full border-b border-[#2d2d3a] transition-all duration-200 ${
-        isScrolled ? "bg-[#0a0a0f]/95 backdrop-blur" : "bg-[#0a0a0f]"
-      }`}
+      className={`sticky top-0 z-40 w-full border-b border-[#2d2d3a] transition-all duration-200 ${isScrolled ? "bg-[#0a0a0f]/95 backdrop-blur" : "bg-[#0a0a0f]"
+        }`}
     >
       <div className="container mx-auto flex h-16 items-center justify-between px-4">
         {/* Logo */}
@@ -218,12 +218,12 @@ const Navbar = () => {
           {isAuthenticated ? (
             <>
               {/* Notification Icon - Only for logged in users */}
-              <button className="relative text-white hover:text-[#9333EA] transition-colors">
+              {/* <button className="relative text-white hover:text-[#9333EA] transition-colors">
                 <Bell size={20} />
                 <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-[#9333EA] text-[10px] text-white">
                   3
                 </span>
-              </button>
+              </button> */}
 
               {/* Messages Icon - Only for logged in users */}
 
@@ -233,8 +233,8 @@ const Navbar = () => {
                   <div className="h-8 w-8 rounded-full overflow-hidden border-2 border-[#9333EA]">
                     <img
                       src={
-                         user?.profilePic ||
-                         "https://res.cloudinary.com/dxmeatsae/image/upload/v1744198536/uploads/tep04pn8luh3bt2n24g6.png"}
+                        user?.profilePic ||
+                        "https://res.cloudinary.com/dxmeatsae/image/upload/v1744198536/uploads/tep04pn8luh3bt2n24g6.png"}
                       alt="Profile"
                       className="h-full w-full object-cover"
                     />
@@ -256,11 +256,18 @@ const Navbar = () => {
                     </div>
 
                     <Link
-                      to="/profile"
+                      to={user?.role === 'client' ? `/client/profile/${user?._id}` : `/freelancer/profile/${user?._id}`}
                       className="flex items-center px-4 py-2 text-sm text-white hover:bg-[#2d2d3a] transition-colors"
                     >
                       <User size={16} className="mr-2" />
                       Profile
+                    </Link>
+                    <Link
+                      to={user?.role === 'client' ? `/client/my-teams` : `/freelancer/my-teams`}
+                      className="flex items-center px-4 py-2 text-sm text-white hover:bg-[#2d2d3a] transition-colors"
+                    >
+                      <Users size={16} className="mr-2" />
+                      My Teams
                     </Link>
 
                     {verificationStatus && (

@@ -17,7 +17,6 @@ import Register from './pages/Register';
 import Admin from './pages/AdminDashboard';
 import Client from './pages/ClientDashboard';
 import Freelancer from './pages/Freelancer';
-import Chat from './pages/Chat';
 import JobSearchPage from './pages/searchJob';
 import AboutUs from './pages/AboutUs';
 import ApplyOnJobPage from './pages/applyJob';
@@ -31,6 +30,17 @@ import VerifyCompany from './pages/VerifyCompany';
 import VerifyUsers from './pages/VerifyUser';
 import ClientJobs from './pages/ClientJobs';
 import JobBids from './pages/JobBids';
+import FreelacnerProposals from './pages/FreelancerProposals';
+import ProposalDetails from './pages/ProposalDetails';
+import MessageTest from './pages/MessageTest';
+import FreelancerProfile from './pages/FreelancerProfile';
+import ClientProfile from './pages/ClientProfile';
+import webSocketSingleton from './socket';
+import SearchJobs from './pages/SearchJobs';
+import SearchFreelancers from './pages/SearchFreelancers';
+import ClientTeams from './pages/clientTeams';
+import FreelancerTeams from './pages/FreelancerTeams';
+import HireOffers from './pages/HireOffers';
 
 
 // Forgot Password Flow
@@ -41,9 +51,19 @@ import ResetPassword from './pages/ResetPassword';
 import Messaging from './pages/Messaging';
 
 export default function App() {
+  const token = localStorage.getItem('authToken');
   const user = useSelector((state) => state.Auth.user);
 
   const isFreelancer = user?.role === 'freelancer';
+
+  useEffect(() => {
+    if (token) {
+      webSocketSingleton.init(token);
+    }
+    return () => {
+      webSocketSingleton.close();
+    };
+  }, [token]);
   useEffect(() => {
     console.log(user, "user in app")
   }, [user]);
@@ -86,20 +106,32 @@ export default function App() {
           </Route>
           <Route path="/client" element={<UserLayout />}>
             <Route index element={<Client />} />
+            <Route path="verify-company" element={<VerifyCompany />} />
             <Route path="post-job" element={<PostJob />} />
             <Route path="my-jobs" element={<ClientJobs />} />
+            <Route path="search-freelancers" element={< SearchFreelancers />} />
             <Route path="jobs/:jobId" element={isClient ? <JobBids /> : <Navigate to="/" />} />
-            <Route path="verify-company" element={<VerifyCompany />} />
+            <Route path="my-teams" element={<ClientTeams />} />
+            <Route path="message-test" element={<MessageTest />} />
             <Route path="messages" element={<Messaging />} />
+            <Route path="messages/:conversationId" element={<Messaging />} />
+            <Route path="profile/:userId" element={<ClientProfile />} />
           </Route>
           
 
 
           <Route path="/freelancer" element={<UserLayout />}>
             <Route index element={<Freelancer />} />
-            <Route path="search-job" element={<JobSearchPage />} />
-            <Route path="apply-job" element={<ApplyOnJobPage />} />
+            <Route path="search-job" element={<SearchJobs/>} />
+            <Route path="apply-job/:jobId" element={<ApplyOnJobPage />} />
+            <Route path="my-proposals" element={<FreelacnerProposals />} />
+            <Route path="my-teams" element={<FreelancerTeams />} />
+            <Route path="hire-offers" element={<HireOffers />} />
+            <Route path="jobs/:jobId" element={<ProposalDetails />} />
             <Route path="messages" element={<Messaging />} />
+            <Route path="messages/:conversationId" element={<Messaging />} />
+            <Route path="profile/:userId" element={<FreelancerProfile />} />
+
           </Route>
 
           {/* Protected Freelancer Route */}

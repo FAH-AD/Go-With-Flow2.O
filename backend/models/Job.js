@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import mongoosePaginate from 'mongoose-paginate-v2';
 
 const milestoneSchema = new mongoose.Schema({
   title: String,
@@ -185,7 +186,17 @@ const jobSchema = new mongoose.Schema(
       }]
     }],
     groupConversation: { type: mongoose.Schema.Types.ObjectId, ref: 'Conversation' },
-    milestones: [milestoneSchema]
+    milestones: [milestoneSchema],
+    interviewedFreelancers: [{
+      freelancer: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+      },
+      lastMessageDate: {
+        type: Date,
+        default: Date.now,
+      },
+    }],
   },
   {
     timestamps: true,
@@ -210,5 +221,6 @@ jobSchema.virtual('bids', {
   justOne: false,
   options: { sort: { createdAt: -1 } },
 });
+jobSchema.plugin(mongoosePaginate);
 
 export default mongoose.model('Job', jobSchema);

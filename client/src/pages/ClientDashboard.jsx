@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useSelector,useDispatch } from "react-redux"
+import { useSelector, useDispatch } from "react-redux"
 import {
   Briefcase,
   DollarSign,
@@ -30,18 +30,48 @@ const ClientDashboard = () => {
   const [activeTab, setActiveTab] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
   const [userStatus, setUserStatus] = useState("")
- const navigate = useNavigate()
- useEffect(() => {
- setUserStatus(localStorage.getItem("userStatus"))
- },[setUserStatus])
+  const [userProfile, setUserProfile] = useState(null);
+  const navigate = useNavigate()
+  const token = localStorage.getItem("authToken")
+  useEffect(() => {
+    setUserStatus(localStorage.getItem("userStatus"))
+  }, [setUserStatus])
 
 
- const user = useSelector((state) => state.Auth.user)
-  const dispatch = useDispatch()
+  const user = useSelector((state) => state.Auth.user)
+  useEffect(() => {
+    const fetchProfile = async () => {
 
-  
+      try {
+        const response = await fetch(`http://localhost:5000/api/user-profile/${user._id}`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        setUserProfile(data.data.user);
+      } catch (error) {
+        console.error('Error fetching user profile:', error.message);
+        // If the token is invalid, you might want to log the user out
+        if (error.message.includes('401')) {
+          console.log("Token seems to be invalid. Logging out.");
+        }
+      }
+    }
+
+
+    fetchProfile();
+  }, [ token]);
+
   const renderVerificationBanner = () => {
-    
+
     switch (userStatus) {
       case "not-verified":
         return (
@@ -51,8 +81,8 @@ const ClientDashboard = () => {
                 <AlertTriangle className="mr-2" />
                 <span>Your company is not verified. Some features may be limited.</span>
               </div>
-              <button 
-                onClick={() => navigate("/verify-company")} 
+              <button
+                onClick={() => navigate("/verify-company")}
                 className="bg-[#9333EA] text-white px-4 py-2 rounded hover:bg-gray-800"
               >
                 Verify Now
@@ -77,8 +107,8 @@ const ClientDashboard = () => {
                 <AlertOctagon className="mr-2" />
                 <span>Your verification was rejected. Please try another way to verify your company.</span>
               </div>
-              <button 
-                onClick={() => navigate("/verify-company")} 
+              <button
+                onClick={() => navigate("/verify-company")}
                 className="bg-[#9333EA] text-white px-4 py-2 rounded hover:bg-gray-800"
               >
                 Try Again
@@ -285,315 +315,293 @@ const ClientDashboard = () => {
             </div>
 
 
-         
-        
-      
 
-      <div className="mt-4 md:mt-0 flex items-center gap-3">
-     
-       
-        <button  onClick={() => navigate("/post-job")} className="flex items-center gap-2 bg-[#9333EA] hover:bg-[#a855f7] text-white px-4 py-2 rounded-md transition-colors">
-          <Plus size={18} />
-          <span>Post a Job</span>
-        </button>
-        
-        <button className="flex items-center gap-2 bg-[#1e1e2d] hover:bg-[#2d2d3a] text-white px-4 py-2 rounded-md border border-[#2d2d3a] transition-colors">
-          <Users size={18} />
-          <span>Find Talent</span>
-        </button>
-      </div>
-    </div>
+
+
+
+            <div className="mt-4 md:mt-0 flex items-center gap-3">
+
+
+              <button onClick={() => navigate("/client/post-job")} className="flex items-center gap-2 bg-[#9333EA] hover:bg-[#a855f7] text-white px-4 py-2 rounded-md transition-colors">
+                <Plus size={18} />
+                <span>Post a Job</span>
+              </button>
+
+              <button onClick={() => navigate("/client/search-freelancers")} className="flex items-center gap-2 bg-[#1e1e2d] hover:bg-[#2d2d3a] text-white px-4 py-2 rounded-md border border-[#2d2d3a] transition-colors">
+                <Users size={18} />
+                <span>Find Talent</span>
+              </button>
+            </div>
+          </div>
         </div >
       </div >
 
-  <div className="container mx-auto px-4 py-8">
-    {/* Stats Overview */}
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-      {/* Projects Card */}
-      <div className="bg-[#121218] p-6 rounded-lg border border-[#2d2d3a] hover:border-[#9333EA]/50 transition-colors">
-        <div className="flex justify-between items-start">
-          <div>
-            <p className="text-gray-400 text-sm">Total Projects</p>
-            <h3 className="text-2xl font-bold mt-1">{stats.projects.total}</h3>
-            <div className="flex items-center mt-2 text-[#9333EA] text-sm">
-              <Briefcase size={14} className="mr-1" />
-              <span>{stats.projects.active} active projects</span>
-            </div>
-          </div>
-          <div className="bg-[#9333EA]/20 p-3 rounded-lg">
-            <Briefcase size={24} className="text-[#9333EA]" />
-          </div>
-        </div>
-        <div className="mt-4 pt-4 border-t border-[#2d2d3a] grid grid-cols-2 gap-2">
-          <div>
-            <p className="text-gray-400 text-xs">Completed</p>
-            <p className="font-medium">{stats.projects.completed}</p>
-          </div>
-          <div>
-            <p className="text-gray-400 text-xs">Completion Rate</p>
-            <p className="font-medium">{Math.round((stats.projects.completed / stats.projects.total) * 100)}%</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Budget Card */}
-      <div className="bg-[#121218] p-6 rounded-lg border border-[#2d2d3a] hover:border-[#9333EA]/50 transition-colors">
-        <div className="flex justify-between items-start">
-          <div>
-            <p className="text-gray-400 text-sm">Total Budget</p>
-            <h3 className="text-2xl font-bold mt-1">${stats.budget.total.toLocaleString()}</h3>
-            <div className="flex items-center mt-2 text-green-400 text-sm">
-              <DollarSign size={14} className="mr-1" />
-              <span>${stats.budget.remaining.toLocaleString()} remaining</span>
-            </div>
-          </div>
-          <div className="bg-[#9333EA]/20 p-3 rounded-lg">
-            <DollarSign size={24} className="text-[#9333EA]" />
-          </div>
-        </div>
-        <div className="mt-4 pt-4 border-t border-[#2d2d3a]">
-          <div className="flex justify-between items-center text-sm mb-1">
-            <span className="text-gray-400">Budget spent</span>
-            <span className="font-medium">{Math.round((stats.budget.spent / stats.budget.total) * 100)}%</span>
-          </div>
-          <div className="w-full h-2 bg-[#2d2d3a] rounded-full">
-            <div
-              className="h-full bg-[#9333EA] rounded-full"
-              style={{ width: `${(stats.budget.spent / stats.budget.total) * 100}%` }}
-            ></div>
-          </div>
-        </div>
-      </div>
-
-      {/* Freelancers Card */}
-      <div className="bg-[#121218] p-6 rounded-lg border border-[#2d2d3a] hover:border-[#9333EA]/50 transition-colors">
-        <div className="flex justify-between items-start">
-          <div>
-            <p className="text-gray-400 text-sm">Hired Freelancers</p>
-            <h3 className="text-2xl font-bold mt-1">{stats.freelancers.hired}</h3>
-            <div className="flex items-center mt-2 text-[#9333EA] text-sm">
-              <Users size={14} className="mr-1" />
-              <span>{stats.freelancers.saved} saved talents</span>
-            </div>
-          </div>
-          <div className="bg-[#9333EA]/20 p-3 rounded-lg">
-            <Users size={24} className="text-[#9333EA]" />
-          </div>
-        </div>
-        <div className="mt-4 pt-4 border-t border-[#2d2d3a] grid grid-cols-2 gap-2">
-          <div>
-            <p className="text-gray-400 text-xs">Avg. Rating</p>
-            <div className="flex items-center">
-              <p className="font-medium mr-1">4.8</p>
-              <Star size={12} fill="#9333EA" className="text-[#9333EA]" />
-            </div>
-          </div>
-          <div>
-            <p className="text-gray-400 text-xs">Rehire Rate</p>
-            <p className="font-medium">85%</p>
-          </div>
-        </div>
-      </div>
-
-      {/* Timeline Card */}
-      <div className="bg-[#121218] p-6 rounded-lg border border-[#2d2d3a] hover:border-[#9333EA]/50 transition-colors">
-        <div className="flex justify-between items-start">
-          <div>
-            <p className="text-gray-400 text-sm">Upcoming Deadlines</p>
-            <h3 className="text-2xl font-bold mt-1">3</h3>
-            <div className="flex items-center mt-2 text-yellow-400 text-sm">
-              <Clock size={14} className="mr-1" />
-              <span>1 due this week</span>
-            </div>
-          </div>
-          <div className="bg-[#9333EA]/20 p-3 rounded-lg">
-            <Clock size={24} className="text-[#9333EA]" />
-          </div>
-        </div>
-        <div className="mt-4 pt-4 border-t border-[#2d2d3a]">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center">
-              <MessageSquare size={14} className="mr-2 text-[#9333EA]" />
-              <p className="text-sm">Unread Messages</p>
-            </div>
-            <div className="bg-[#9333EA] text-white text-xs font-bold px-2 py-1 rounded-full">
-              {stats.messages.unread}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    {/* Main Content - Two Column Layout */}
-    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-      {/* Left Column - 2/3 width */}
-      <div className="lg:col-span-2 space-y-8">
-        {/* Projects Section */}
-        <div className="bg-[#121218] rounded-lg border border-[#2d2d3a]">
-          <div className="p-6 border-b border-[#2d2d3a]">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold">My Projects</h2>
-              <button className="flex items-center gap-2 text-[#9333EA] hover:text-[#a855f7] text-sm">
-                <Plus size={16} />
-                <span>New Project</span>
-              </button>
-            </div>
-
-            {/* Search and Filter */}
-            <div className="mt-4 flex flex-col sm:flex-row gap-4">
-              <div className="relative flex-grow">
-                <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  placeholder="Search projects..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-10 pr-4 py-2 bg-[#1e1e2d] border border-[#2d2d3a] rounded-md text-white focus:outline-none focus:ring-2 focus:ring-[#9333EA] focus:border-transparent"
-                />
+      <div className="container mx-auto px-4 py-8">
+        {/* Stats Overview */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {/* Projects Card */}
+          <div className="bg-[#121218] p-6 rounded-lg border border-[#2d2d3a] hover:border-[#9333EA]/50 transition-colors">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-gray-400 text-sm">Total Projects</p>
+                <h3 className="text-2xl font-bold mt-1">{stats.projects.total}</h3>
+                <div className="flex items-center mt-2 text-[#9333EA] text-sm">
+                  <Briefcase size={14} className="mr-1" />
+                  <span>{stats.projects.active} active projects</span>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button className="flex items-center gap-2 bg-[#1e1e2d] hover:bg-[#2d2d3a] text-white px-4 py-2 rounded-md border border-[#2d2d3a] transition-colors">
-                  <Filter size={16} />
-                  <span>Filter</span>
+              <div className="bg-[#9333EA]/20 p-3 rounded-lg">
+                <Briefcase size={24} className="text-[#9333EA]" />
+              </div>
+            </div>
+            <div className="mt-4 pt-4 border-t border-[#2d2d3a] grid grid-cols-2 gap-2">
+              <div>
+                <p className="text-gray-400 text-xs">Completed</p>
+                <p className="font-medium">{stats.projects.completed}</p>
+              </div>
+              <div>
+                <p className="text-gray-400 text-xs">Completion Rate</p>
+                <p className="font-medium">{Math.round((stats.projects.completed / stats.projects.total) * 100)}%</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Budget Card */}
+          <div className="bg-[#121218] p-6 rounded-lg border border-[#2d2d3a] hover:border-[#9333EA]/50 transition-colors">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-gray-400 text-sm">Total Spendings</p>
+                <h3 className="text-2xl font-bold mt-1">PKR {userProfile.totalSpent}</h3>
+               
+              </div>
+              <div className="bg-[#9333EA]/20 p-3 rounded-lg">
+                <DollarSign size={24} className="text-[#9333EA]" />
+              </div>
+            </div>
+            <div className="mt-4 pt-4 border-t border-[#2d2d3a]">
+              {/* <div className="flex justify-between items-center text-sm mb-1">
+                <span className="text-gray-400">Budget spent</span>
+                <span className="font-medium">{Math.round((stats.budget.spent / stats.budget.total) * 100)}%</span>
+              </div> */}
+              {/* <div className="w-full h-2 bg-[#2d2d3a] rounded-full">
+                <div
+                  className="h-full bg-[#9333EA] rounded-full"
+                  style={{ width: `${(stats.budget.spent / stats.budget.total) * 100}%` }}
+                ></div>
+              </div> */}
+            </div>
+          </div>
+
+          {/* Freelancers Card */}
+          <div className="bg-[#121218] p-6 rounded-lg border border-[#2d2d3a] hover:border-[#9333EA]/50 transition-colors">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-gray-400 text-sm">Hired Freelancers</p>
+                <h3 className="text-2xl font-bold mt-1">{stats.freelancers.hired}</h3>
+                <div className="flex items-center mt-2 text-[#9333EA] text-sm">
+                  <Users size={14} className="mr-1" />
+                  <span>{stats.freelancers.saved} saved talents</span>
+                </div>
+              </div>
+              <div className="bg-[#9333EA]/20 p-3 rounded-lg">
+                <Users size={24} className="text-[#9333EA]" />
+              </div>
+            </div>
+            <div className="mt-4 pt-4 border-t border-[#2d2d3a] grid grid-cols-2 gap-2">
+              <div>
+                <p className="text-gray-400 text-xs">Avg. Rating</p>
+                <div className="flex items-center">
+                  <p className="font-medium mr-1">4.8</p>
+                  <Star size={12} fill="#9333EA" className="text-[#9333EA]" />
+                </div>
+              </div>
+              <div>
+                <p className="text-gray-400 text-xs">Rehire Rate</p>
+                <p className="font-medium">85%</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Timeline Card */}
+          <div className="bg-[#121218] p-6 rounded-lg border border-[#2d2d3a] hover:border-[#9333EA]/50 transition-colors">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="text-gray-400 text-sm">Upcoming Deadlines</p>
+                <h3 className="text-2xl font-bold mt-1">3</h3>
+                <div className="flex items-center mt-2 text-yellow-400 text-sm">
+                  <Clock size={14} className="mr-1" />
+                  <span>1 due this week</span>
+                </div>
+              </div>
+              <div className="bg-[#9333EA]/20 p-3 rounded-lg">
+                <Clock size={24} className="text-[#9333EA]" />
+              </div>
+            </div>
+            <div className="mt-4 pt-4 border-t border-[#2d2d3a]">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <MessageSquare size={14} className="mr-2 text-[#9333EA]" />
+                  <p className="text-sm">Unread Messages</p>
+                </div>
+                <div className="bg-[#9333EA] text-white text-xs font-bold px-2 py-1 rounded-full">
+                  {stats.messages.unread}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Main Content - Two Column Layout */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Left Column - 2/3 width */}
+          <div className="lg:col-span-2 space-y-8">
+            {/* Projects Section */}
+            <div className="bg-[#121218] rounded-lg border border-[#2d2d3a]">
+              <div className="p-6 border-b border-[#2d2d3a]">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-bold">My Projects</h2>
+                  <button className="flex items-center gap-2 text-[#9333EA] hover:text-[#a855f7] text-sm">
+                    <Plus size={16} />
+                    <span>New Project</span>
+                  </button>
+                </div>
+
+                {/* Search and Filter */}
+                <div className="mt-4 flex flex-col sm:flex-row gap-4">
+                  <div className="relative flex-grow">
+                    <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search projects..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2 bg-[#1e1e2d] border border-[#2d2d3a] rounded-md text-white focus:outline-none focus:ring-2 focus:ring-[#9333EA] focus:border-transparent"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button className="flex items-center gap-2 bg-[#1e1e2d] hover:bg-[#2d2d3a] text-white px-4 py-2 rounded-md border border-[#2d2d3a] transition-colors">
+                      <Filter size={16} />
+                      <span>Filter</span>
+                    </button>
+                    <select className="bg-[#1e1e2d] text-white px-4 py-2 rounded-md border border-[#2d2d3a] focus:outline-none focus:ring-2 focus:ring-[#9333EA]">
+                      <option value="all">All Projects</option>
+                      <option value="active">Active</option>
+                      <option value="completed">Completed</option>
+                      <option value="draft">Draft</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Project Tabs */}
+                <div className="flex mt-4 border-b border-[#2d2d3a] overflow-x-auto">
+                  <button
+                    className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${activeTab === "all" ? "text-[#9333EA] border-b-2 border-[#9333EA]" : "text-gray-400 hover:text-white"}`}
+                    onClick={() => setActiveTab("all")}
+                  >
+                    All Projects
+                  </button>
+                  <button
+                    className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${activeTab === "active" ? "text-[#9333EA] border-b-2 border-[#9333EA]" : "text-gray-400 hover:text-white"}`}
+                    onClick={() => setActiveTab("active")}
+                  >
+                    Active
+                  </button>
+                  <button
+                    className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${activeTab === "completed" ? "text-[#9333EA] border-b-2 border-[#9333EA]" : "text-gray-400 hover:text-white"}`}
+                    onClick={() => setActiveTab("completed")}
+                  >
+                    Completed
+                  </button>
+                  <button
+                    className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${activeTab === "draft" ? "text-[#9333EA] border-b-2 border-[#9333EA]" : "text-gray-400 hover:text-white"}`}
+                    onClick={() => setActiveTab("draft")}
+                  >
+                    Draft
+                  </button>
+                </div>
+              </div>
+
+              {/* Project Cards */}
+              <div className="p-4 grid gap-4">
+                {projects.map((project) => (
+                  <ProjectCard key={project.id} project={project} />
+                ))}
+
+                {projects.length === 0 && (
+                  <div className="text-center py-8">
+                    <p className="text-gray-400">No projects found.</p>
+                    <button className="mt-4 bg-[#9333EA] hover:bg-[#a855f7] text-white px-4 py-2 rounded-md transition-colors">
+                      Create New Project
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* View All Projects Button */}
+              <div className="p-4 border-t border-[#2d2d3a] flex justify-center">
+                <a
+                  href="/client/projects"
+                  className="flex items-center gap-2 bg-[#1e1e2d] hover:bg-[#2d2d3a] text-white px-6 py-2 rounded-md border border-[#2d2d3a] transition-colors"
+                >
+                  <span>View All Projects</span>
+                  <ChevronRight size={16} />
+                </a>
+              </div>
+            </div>
+
+            {/* Budget Overview */}
+
+          </div>
+
+          {/* Right Column - 1/3 width */}
+          <div className="space-y-8">
+
+          <div className="bg-[#121218] rounded-lg border border-[#2d2d3a]">
+              <div className="p-6 border-b border-[#2d2d3a]">
+                <h2 className="text-xl font-bold">Quick Actions</h2>
+              </div>
+
+              <div className="p-4 grid grid-cols-2 gap-4">
+                <button onClick={() => navigate("/client/post-job")} className="flex flex-col items-center justify-center bg-[#1e1e2d] hover:bg-[#2d2d3a] p-4 rounded-lg transition-colors">
+                  <Plus size={24} className="text-[#9333EA] mb-2" />
+                  <span className="text-sm">Post a Job</span>
                 </button>
-                <select className="bg-[#1e1e2d] text-white px-4 py-2 rounded-md border border-[#2d2d3a] focus:outline-none focus:ring-2 focus:ring-[#9333EA]">
-                  <option value="all">All Projects</option>
-                  <option value="active">Active</option>
-                  <option value="completed">Completed</option>
-                  <option value="draft">Draft</option>
-                </select>
-              </div>
-            </div>
-
-            {/* Project Tabs */}
-            <div className="flex mt-4 border-b border-[#2d2d3a] overflow-x-auto">
-              <button
-                className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${activeTab === "all" ? "text-[#9333EA] border-b-2 border-[#9333EA]" : "text-gray-400 hover:text-white"}`}
-                onClick={() => setActiveTab("all")}
-              >
-                All Projects
-              </button>
-              <button
-                className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${activeTab === "active" ? "text-[#9333EA] border-b-2 border-[#9333EA]" : "text-gray-400 hover:text-white"}`}
-                onClick={() => setActiveTab("active")}
-              >
-                Active
-              </button>
-              <button
-                className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${activeTab === "completed" ? "text-[#9333EA] border-b-2 border-[#9333EA]" : "text-gray-400 hover:text-white"}`}
-                onClick={() => setActiveTab("completed")}
-              >
-                Completed
-              </button>
-              <button
-                className={`px-4 py-2 text-sm font-medium whitespace-nowrap ${activeTab === "draft" ? "text-[#9333EA] border-b-2 border-[#9333EA]" : "text-gray-400 hover:text-white"}`}
-                onClick={() => setActiveTab("draft")}
-              >
-                Draft
-              </button>
-            </div>
-          </div>
-
-          {/* Project Cards */}
-          <div className="p-4 grid gap-4">
-            {projects.map((project) => (
-              <ProjectCard key={project.id} project={project} />
-            ))}
-
-            {projects.length === 0 && (
-              <div className="text-center py-8">
-                <p className="text-gray-400">No projects found.</p>
-                <button className="mt-4 bg-[#9333EA] hover:bg-[#a855f7] text-white px-4 py-2 rounded-md transition-colors">
-                  Create New Project
+                <button onClick={() => navigate("/client/search-freelancers")} className="flex flex-col items-center justify-center bg-[#1e1e2d] hover:bg-[#2d2d3a] p-4 rounded-lg transition-colors">
+                  <Users size={24} className="text-[#9333EA] mb-2" />
+                  <span className="text-sm">Find Talent</span>
                 </button>
-              </div>
-            )}
-          </div>
-
-          {/* View All Projects Button */}
-          <div className="p-4 border-t border-[#2d2d3a] flex justify-center">
-            <a
-              href="/client/projects"
-              className="flex items-center gap-2 bg-[#1e1e2d] hover:bg-[#2d2d3a] text-white px-6 py-2 rounded-md border border-[#2d2d3a] transition-colors"
-            >
-              <span>View All Projects</span>
-              <ChevronRight size={16} />
-            </a>
-          </div>
-        </div>
-
-        {/* Budget Overview */}
-
-      </div>
-
-      {/* Right Column - 1/3 width */}
-      <div className="space-y-8">
-        {/* Project Timeline */}
-        <div className="bg-[#121218] rounded-lg border border-[#2d2d3a]">
-          <div className="p-6 border-b border-[#2d2d3a]">
-            <h2 className="text-xl font-bold">Project Timeline</h2>
-          </div>
-
-          <div className="p-6">
-            <ProjectTimeline projects={projects} />
-          </div>
-        </div>
-
-        {/* Saved Freelancers */}
-        <div className="bg-[#121218] rounded-lg border border-[#2d2d3a]">
-          <div className="p-6 border-b border-[#2d2d3a]">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold">Saved Freelancers</h2>
-              <a href="/client/freelancers" className="text-[#9333EA] hover:text-[#a855f7] text-sm">
-                View All
-              </a>
-            </div>
-          </div>
-
-          <div className="p-4 space-y-4">
-            {savedFreelancers.map((freelancer) => (
-              <FreelancerCard key={freelancer.id} freelancer={freelancer} />
-            ))}
-
-            {savedFreelancers.length === 0 && (
-              <div className="text-center py-8">
-                <p className="text-gray-400">You haven't saved any freelancers yet.</p>
-                <button className="mt-4 bg-[#9333EA] hover:bg-[#a855f7] text-white px-4 py-2 rounded-md transition-colors">
-                  Find Talent
+                <button onClick={() => navigate("/client/messages")} className="flex flex-col items-center justify-center bg-[#1e1e2d] hover:bg-[#2d2d3a] p-4 rounded-lg transition-colors">
+                  <MessageSquare size={24} className="text-[#9333EA] mb-2" />
+                  <span className="text-sm">Messages</span>
+                </button>
+                <button onClick={() => navigate("/client/my-jobs")} className="flex flex-col items-center justify-center bg-[#1e1e2d] hover:bg-[#2d2d3a] p-4 rounded-lg transition-colors">
+                  <Briefcase size={24} className="text-[#9333EA] mb-2" />
+                  <span className="text-sm">My Jobs</span>
                 </button>
               </div>
-            )}
-          </div>
-        </div>
+            </div>
+            {/* Project Timeline */}
+            <div className="bg-[#121218] rounded-lg border border-[#2d2d3a]">
+              <div className="p-6 border-b border-[#2d2d3a]">
+                <h2 className="text-xl font-bold">Project Timeline</h2>
+              </div>
 
-        {/* Quick Actions */}
-        <div className="bg-[#121218] rounded-lg border border-[#2d2d3a]">
-          <div className="p-6 border-b border-[#2d2d3a]">
-            <h2 className="text-xl font-bold">Quick Actions</h2>
-          </div>
+              <div className="p-6">
+                <ProjectTimeline projects={projects} />
+              </div>
+            </div>
 
-          <div className="p-4 grid grid-cols-2 gap-4">
-            <button className="flex flex-col items-center justify-center bg-[#1e1e2d] hover:bg-[#2d2d3a] p-4 rounded-lg transition-colors">
-              <Plus size={24} className="text-[#9333EA] mb-2" />
-              <span className="text-sm">Post a Job</span>
-            </button>
-            <button className="flex flex-col items-center justify-center bg-[#1e1e2d] hover:bg-[#2d2d3a] p-4 rounded-lg transition-colors">
-              <Users size={24} className="text-[#9333EA] mb-2" />
-              <span className="text-sm">Find Talent</span>
-            </button>
-            <button className="flex flex-col items-center justify-center bg-[#1e1e2d] hover:bg-[#2d2d3a] p-4 rounded-lg transition-colors">
-              <MessageSquare size={24} className="text-[#9333EA] mb-2" />
-              <span className="text-sm">Messages</span>
-            </button>
-            <button className="flex flex-col items-center justify-center bg-[#1e1e2d] hover:bg-[#2d2d3a] p-4 rounded-lg transition-colors">
-              <Briefcase size={24} className="text-[#9333EA] mb-2" />
-              <span className="text-sm">My Projects</span>
-            </button>
+            {/* Saved Freelancers */}
+            
+
+            {/* Quick Actions */}
+            
+
+
+
           </div>
         </div>
       </div>
-    </div>
-  </div>
     </div >
   )
 }

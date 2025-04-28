@@ -17,6 +17,7 @@ const messageSchema = new mongoose.Schema(
       required: [true, 'Message content is required'],
       trim: true,
     },
+    timestamp: { type: Date, default: Date.now },
     isRead: {
       type: Boolean,
       default: false,
@@ -89,5 +90,12 @@ messageSchema.index({ conversation: 1, createdAt: -1 });
 messageSchema.index({ sender: 1 });
 messageSchema.index({ isRead: 1 });
 messageSchema.index({ type: 1 });
+
+messageSchema.methods.markAsRead = async function(userId) {
+  if (!this.readBy.some(entry => entry.user.equals(userId))) {
+    this.readBy.push({ user: userId, readAt: new Date() });
+    await this.save();
+  }
+};
 
 export default mongoose.model('Message', messageSchema);

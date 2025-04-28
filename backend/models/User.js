@@ -1,6 +1,8 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcrypt';
 import crypto from 'crypto';
+import mongoosePaginate from 'mongoose-paginate-v2';
+
 const portfolioSchema = new mongoose.Schema({
   title: {
     type: String,
@@ -44,6 +46,10 @@ const userSchema = new mongoose.Schema(
       required: [true, 'Name is required'],
       trim: true,
     },
+    savedJobs: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Job'
+    }],
     email: {
       type: String,
       required: [true, 'Email is required'],
@@ -358,5 +364,7 @@ userSchema.methods.generateCompanyEmailVerificationToken = function () {
 
   return verificationToken;
 };
+
+userSchema.plugin(mongoosePaginate);
 
 export default mongoose.model('User', userSchema);

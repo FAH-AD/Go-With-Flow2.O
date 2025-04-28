@@ -98,70 +98,61 @@ export const getJobs = async (req, res, next) => {
     const freelancerSkills = (freelancer.skills || []).map(skill => skill.toLowerCase());
 
     const allJobs = await Job.find({ status: 'open' })
-      .populate('client', 'name email profileImage')
-      .sort({ createdAt: -1 });
-
-    const matchingJobs = [];
-
-    for (const job of allJobs) {
-      const jobObj = job.toObject();
-      let jobSkills = [];
-
-      if (job.isCrowdsourced) {
-        // Crowdsourced jobs
-        jobSkills = [...new Set(
-          jobObj.crowdsourcingRoles.flatMap(role => {
-            const roleSkillsString = (role.skills && role.skills.length > 0) ? role.skills[0] : '[]';
-            let parsedSkills = [];
-            try {
-              parsedSkills = JSON.parse(roleSkillsString);
-            } catch (err) {
-              console.error('Error parsing role skills:', err);
-            }
-            return (Array.isArray(parsedSkills) ? parsedSkills : []);
-          })
-        )];
-      } else {
-        // Normal jobs
-        if (Array.isArray(jobObj.skills) && jobObj.skills.length > 0) {
-          const skillEntry = jobObj.skills[0]; // String stored
-          try {
-            const parsedSkills = JSON.parse(skillEntry);
-            jobSkills = Array.isArray(parsedSkills) ? parsedSkills : [];
-          } catch (err) {
-            console.error('Error parsing job skills:', err);
-            jobSkills = [];
+        .populate('client', 'name email profilePic companyName totalSpent')
+        .sort({ createdAt: -1 });
+  
+      const jobsWithAppliedStatus = await Promise.all(allJobs
+        .filter(job => job.client) // Filter out jobs where client doesn't exist
+        .map(async (job) => {
+          const jobObj = job.toObject();
+          let jobSkills = [];
+  
+          if (job.isCrowdsourced) {
+            jobSkills = [...new Set(
+              jobObj.crowdsourcingRoles.flatMap(role => role.skills || [])
+            )];
+          } else {
+            jobSkills = jobObj.skills || [];
           }
-        }
-      }
-
-      jobSkills = jobSkills.map(skill => skill.toLowerCase());
-
-      const matchingSkills = jobSkills.filter(skill => freelancerSkills.includes(skill));
-
-      if (matchingSkills.length > 0) {
-        const matchPercentage = jobSkills.length > 0
-          ? Math.round((matchingSkills.length / jobSkills.length) * 100)
-          : 0;
-
-        matchingJobs.push({
-          ...jobObj,
-          skillMatchPercentage: matchPercentage,
-          matchingSkills, // optional
-        });
-      }
+  
+          jobSkills = jobSkills.map(skill => skill.toLowerCase());
+  
+          const matchingSkills = jobSkills.filter(skill => freelancerSkills.includes(skill));
+  
+          const matchPercentage = jobSkills.length > 0
+            ? Math.round((matchingSkills.length / jobSkills.length) * 100)
+            : 0;
+  
+          // Check if the freelancer has applied for this job
+          const hasApplied = await Bid.exists({ job: job._id, freelancer: req.user.id });
+  
+          return {
+            ...jobObj,
+            client: {
+              _id: jobObj.client._id,
+              name: jobObj.client.name,
+              email: jobObj.client.email,
+              profileImage: jobObj.client.profilePic,
+              companyName: jobObj.client.companyName,
+              totalSpent: jobObj.client.totalSpent
+            },
+            skillMatchPercentage: matchPercentage,
+            matchingSkills,
+            hasApplied: !!hasApplied, // Convert to boolean
+          };
+        }));
+  
+      const matchingJobs = jobsWithAppliedStatus
+        .filter(job => job.matchingSkills.length > 0)
+        .sort((a, b) => b.skillMatchPercentage - a.skillMatchPercentage);
+  
+      sendResponse(res, httpStatus.OK, 'Jobs retrieved successfully.', matchingJobs);
+  
+    } catch (error) {
+      console.error('Error in getJobs:', error);
+      next(new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Unable to fetch jobs.'));
     }
-
-    matchingJobs.sort((a, b) => b.skillMatchPercentage - a.skillMatchPercentage);
-
-    sendResponse(res, httpStatus.OK, 'Jobs retrieved successfully.', matchingJobs);
-
-  } catch (error) {
-    console.error('Error in getJobs:', error);
-    next(new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Unable to fetch jobs.'));
-  }
-};
-
+  };
 
 export const getAllJobs = async (req, res, next) => {
   try {
@@ -176,7 +167,7 @@ export const getAllJobs = async (req, res, next) => {
 
     // Fetch all open jobs without skill matching
     const allJobs = await Job.find({ status: 'open' })
-      .populate('client', 'name email profileImage')
+      .populate('client', 'name email profilePic')
       .sort({ createdAt: -1 });
 
     sendResponse(res, httpStatus.OK, 'Jobs retrieved successfully.', allJobs);
@@ -194,12 +185,92 @@ export const getAllJobs = async (req, res, next) => {
 export const getJobById = async (req, res, next) => {
   try {
     const job = await Job.findById(req.params.id);
-    if (!job) return next(new ApiError(httpStatus.NOT_FOUND, 'Job not found.'));
+
+    if (!job) {
+      console.error('Job not found with ID:', req.params.id);
+      return next(new ApiError(httpStatus.NOT_FOUND, 'Job not found.'));
+    }
+
     sendResponse(res, httpStatus.OK, 'Job details retrieved successfully.', job);
   } catch (error) {
+    console.error('Error in getJobById:', error.message); // log real error
     next(new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Could not retrieve job.'));
   }
 };
+
+
+export const searchJobs = async (req, res, next) => {
+  try {
+    if (!req.user || req.user.role !== 'freelancer') {
+      return res.status(httpStatus.UNAUTHORIZED).json({
+        success: false,
+        message: 'Only freelancers can search for jobs.'
+      });
+    }
+
+    const {
+      title, skills, budget, duration, experienceLevel, location,
+      status, isPromoted, isPublic, isCrowdsourced, page = 1, limit = 10
+    } = req.query;
+
+    const query = {};
+
+    if (title) query.$text = { $search: title };
+    if (skills) query.skills = { $in: skills.split(',') };
+    if (budget) {
+      const [minBudget, maxBudget] = budget.split('-');
+      query.budget = {};
+      if (minBudget) query.budget.$gte = Number(minBudget);
+      if (maxBudget) query.budget.$lte = Number(maxBudget);
+    }
+    if (duration) query.duration = duration;
+    if (experienceLevel) query.experienceLevel = experienceLevel;
+    if (location) query.location = location;
+    if (status) query.status = status;
+    if (isPromoted !== undefined) query.isPromoted = isPromoted === 'true';
+    if (isPublic !== undefined) query.isPublic = isPublic === 'true';
+    if (isCrowdsourced !== undefined) query.isCrowdsourced = isCrowdsourced === 'true';
+
+    const options = {
+      page: parseInt(page, 10),
+      limit: parseInt(limit, 10),
+      sort: { createdAt: -1 },
+      populate: { path: 'client', select: 'name email profilePic' }
+    };
+
+    const jobs = await Job.paginate(query, options);
+
+    const jobsWithAppliedStatus = await Promise.all(
+      jobs.docs.map(async (job) => {
+        const bid = await Bid.findOne({ job: job._id, freelancer: req.user._id }).lean();
+        return {
+          ...job.toObject(),
+          hasApplied: !!bid
+        };
+      })
+    );
+
+    return res.status(httpStatus.OK).json({
+      success: true,
+      message: 'Jobs retrieved successfully.',
+      data: {
+        jobs: jobsWithAppliedStatus,
+        currentPage: jobs.page,
+        totalPages: jobs.totalPages,
+        totalJobs: jobs.totalDocs
+      }
+    });
+
+  } catch (error) {
+    console.error('Error in searchJobs:', error.message);
+    return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
+      success: false,
+      message: 'Unable to search jobs.'
+    });
+  }
+};
+
+
 
 // 4. Get Jobs by Client
 export const getMyPostedJobs = async (req, res, next) => {
@@ -328,6 +399,8 @@ export const hireFreelancer = async (req, res) => {
     return customErrorHandler(res, error);
   }
 };
+
+
 
 export const addTeamMember = async (req, res) => {
   try {
@@ -833,7 +906,7 @@ export const getAllClientJobs = async (req, res, next) => {
     const skip = (page - 1) * limit;
 
     const jobs = await Job.find()
-      .populate('client', 'name email profileImage')
+      .populate('client', 'name email profilePic')
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit);
@@ -844,7 +917,7 @@ export const getAllClientJobs = async (req, res, next) => {
       ...job.toObject(),
       clientName: job.client.name,
       clientEmail: job.client.email,
-      clientProfileImage: job.client.profileImage
+      clientProfileImage: job.client.profilePic
     }));
 
     sendResponse(res, httpStatus.OK, 'All client jobs retrieved successfully.', {
@@ -891,6 +964,93 @@ export const getJobMilestones = async (req, res) => {
     });
   } catch (error) {
     return customErrorHandler(res, error);
+  }
+};
+// Save Job
+export const saveJob = async (req, res, next) => {
+  try {
+    const jobId = req.params.id;
+    const userId = req.user.id;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return next(new ApiError(httpStatus.NOT_FOUND, 'User not found.'));
+    }
+
+    if (!user.savedJobs.includes(jobId)) {
+      user.savedJobs.push(jobId);
+      await user.save();
+    }
+
+    sendResponse(res, httpStatus.OK, 'Job saved successfully.');
+  } catch (error) {
+    next(new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Could not save job.'));
+  }
+};
+
+// Unsave Job
+export const unsaveJob = async (req, res, next) => {
+  try {
+    const jobId = req.params.id;
+    const userId = req.user.id;
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return next(new ApiError(httpStatus.NOT_FOUND, 'User not found.'));
+    }
+
+    user.savedJobs = user.savedJobs.filter(id => id.toString() !== jobId);
+    await user.save();
+
+    sendResponse(res, httpStatus.OK, 'Job unsaved successfully.');
+  } catch (error) {
+    next(new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Could not unsave job.'));
+  }
+};
+
+export const getClientCrowdsourcedJobs = async (req, res, next) => {
+  try {
+    const clientId = req.user._id;
+
+    const crowdsourcedJobs = await Job.find({
+      client: clientId,
+      isCrowdsourced: true
+    }).populate('team.freelancer', 'name email profilePic')
+      .populate('groupConversation')
+      .sort({ createdAt: -1 });
+
+    if (!crowdsourcedJobs || crowdsourcedJobs.length === 0) {
+      return successResponse(res, 200, 'No crowdsourced jobs found for this client.', []);
+    }
+
+    const formattedJobs = crowdsourcedJobs.map(job => ({
+      _id: job._id,
+      title: job.title,
+      description: job.description,
+      status: job.status,
+      budget: job.budget,
+      deadline: job.deadline,
+      createdAt: job.createdAt,
+      crowdsourcingRoles: job.crowdsourcingRoles,
+      team: job.team.map(member => ({
+        _id: member._id,
+        freelancer: {
+          _id: member.freelancer._id,
+          name: member.freelancer.name,
+          email: member.freelancer.email,
+          profilePic: member.freelancer.profilePic
+        },
+        role: member.role,
+        status: member.status,
+        milestones: member.milestones
+      })),
+      groupConversationId: job.groupConversation ? job.groupConversation._id : null
+    }));
+
+    return successResponse(res, 200, 'Crowdsourced jobs retrieved successfully.', formattedJobs);
+  } catch (error) {
+    console.error('Error in getClientCrowdsourcedJobs:', error);
+    return next(new ApiError(httpStatus.INTERNAL_SERVER_ERROR, 'Unable to fetch crowdsourced jobs.'));
   }
 };
 

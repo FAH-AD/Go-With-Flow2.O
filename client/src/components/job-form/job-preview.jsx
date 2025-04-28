@@ -63,10 +63,9 @@ const JobPreview = ({ jobData }) => {
 
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <div className="flex items-center">
-            <DollarSign size={18} className="text-[#9333EA] mr-2" />
             <div>
               <div className="text-sm text-gray-400">Budget</div>
-              <div className="font-medium">${jobData.budget || 0}</div>
+              <div className="font-medium">PKR {jobData.budget || 0}</div>
             </div>
           </div>
           <div className="flex items-center">
@@ -166,7 +165,7 @@ const JobPreview = ({ jobData }) => {
                 <div key={index} className="bg-[#121218] border border-[#2d2d3a] rounded-md p-4">
                   <div className="flex justify-between items-center mb-2">
                     <h4 className="font-medium">{role.title || `Role #${index + 1}`}</h4>
-                    <div className="bg-[#9333EA]/20 text-[#9333EA] px-2 py-1 rounded text-xs">${role.budget || 0}</div>
+                    <div className="bg-[#9333EA]/20 text-[#9333EA] px-2 py-1 rounded text-xs">PKR {role.budget || 0}</div>
                   </div>
 
                   <p className="text-gray-300 text-sm mb-3">{role.description || "No description provided."}</p>
